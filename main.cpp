@@ -10,9 +10,10 @@ using std::unordered_map;
 
 typedef int entityid;
 typedef int textureid;
-typedef enum { C_NAME, C_TYPE, C_POSITION, C_HITBOX, C_COUNT } component;
+typedef enum { C_NAME, C_TYPE, C_POSITION, C_HITBOX, C_VELOCITY, C_COUNT } component;
 typedef enum { ENTITY_NONE, ENTITY_HERO, ENTITY_SWORD, ENTITY_ORC, ENTITY_COUNT } entity_type;
 typedef enum { SCENE_COMPANY, SCENE_TITLE, SCENE_GAMEPLAY, SCENE_GAMEOVER, SCENE_COUNT } game_scene;
+typedef enum { TX_HERO, TX_SWORD, TX_ORC, TX_COUNT } tx_index;
 
 const char* game_window_title = "evildojo666 presents: gamejam 2025";
 int window_w = 1280;
@@ -29,7 +30,7 @@ RenderTexture target_texture;
 Rectangle target_src;
 Rectangle target_dst;
 Rectangle window_dst;
-Vector2 origin;
+const Vector2 origin = {0, 0};
 Camera2D cam2d;
 int frame_count = 0;
 Texture2D txinfo[32];
@@ -38,6 +39,7 @@ unordered_map<entityid, string> names;
 unordered_map<entityid, entity_type> types;
 unordered_map<entityid, Vector2> positions;
 unordered_map<entityid, Rectangle> hitboxes;
+unordered_map<entityid, Vector2> velocities;
 entityid next_entityid = 0;
 const entityid ENTITYID_INVALID = -1;
 entityid hero_id = ENTITYID_INVALID;
@@ -48,13 +50,17 @@ bool player_attacking = false;
 string comp2str(component c) {
     switch (c) {
     case C_NAME:
-        return "C_NAME";
+        return "NAME";
     case C_TYPE:
-        return "C_TYPE";
+        return "TYPE";
     case C_POSITION:
-        return "C_POSITION";
+        return "POSITION";
+    case C_HITBOX:
+        return "HITBOX";
+    case C_VELOCITY:
+        return "VELOCITY";
     case C_COUNT:
-        return "C_COUNT";
+        return "COUNT";
     default:
         return "UNKNOWN_COMPONENT";
     }
@@ -67,6 +73,10 @@ string entity_type2str(entity_type t) {
         return "NONE";
     case ENTITY_HERO:
         return "HERO";
+    case ENTITY_SWORD:
+        return "SWORD";
+    case ENTITY_ORC:
+        return "ORC";
     default:
         return "UNKNOWN_TYPE";
     }
@@ -235,6 +245,22 @@ bool update_hitbox_y(entityid id, float incr) {
 }
 
 
+bool set_velocity(entityid id, Vector2 v) {
+    if (!entity_exists(id)) return false;
+    set_comp(id, C_VELOCITY);
+    velocities[id] = v;
+    return true;
+}
+
+
+Vector2 get_velocity(entityid id) {
+    if (!has_comp(id, C_VELOCITY)) return origin;
+    auto it = velocities.find(id);
+    if (it != velocities.end()) return it->second;
+    return origin;
+}
+
+
 bool create_player() {
     entityid id = add_entity();
     if (id == ENTITYID_INVALID) return false;
@@ -261,6 +287,31 @@ bool create_sword() {
     set_pos(id, (Vector2){-1, -1});
     set_hitbox(id, (Rectangle){-1, -1, -1, -1});
     sword_id = id;
+    return true;
+}
+
+
+bool create_orc() {
+    entityid id = add_entity();
+    if (id == ENTITYID_INVALID) return false;
+    set_name(id, "orc");
+    set_type(id, ENTITY_ORC);
+    float w = txinfo[0].width * 1.0f;
+    float h = txinfo[0].height * 1.0f;
+    // Select a random x,yf appropriate to the scene
+    //float x = GetRandomValue(0, target_w - (int)w);
+    //float y = GetRandomValue(0, target_h - (int)h);
+    Vector2 p = get_pos(hero_id);
+    p.x += 40;
+    //Vector2 v = {x, y};
+    set_pos(id, p);
+    Rectangle hitbox = {p.x, p.y, w, h};
+    set_hitbox(id, hitbox);
+
+    Vector2 v = {-0.1f, 0.0};
+    set_velocity(id, v);
+
+    //hero_id = id;
     return true;
 }
 
@@ -295,6 +346,11 @@ void handle_input_gameplay() {
         player_attacking = false;
         //    set_pos(sword_id, (Vector2){-1, -1});
         //    set_hitbox(sword_id, (Rectangle){-1, -1, -1, -1});
+    }
+
+
+    if (IsKeyPressed(KEY_C)) {
+        create_orc();
     }
 }
 
@@ -376,23 +432,22 @@ void draw_gameplay() {
         Vector2 pos = get_pos(id);
         if (pos.x < 0 || pos.y < 0) continue;
         entity_type type = get_type(id);
-        //string name = get_name(id);
         if (type == ENTITY_HERO) {
             Rectangle src = {0, 0, 7, 7};
             Rectangle dst = {pos.x, pos.y, 7, 7};
-            Vector2 origin = {0, 0};
-            Rectangle hit_box = get_hitbox(id);
-            DrawTexturePro(txinfo[0], src, dst, origin, 0.0f, WHITE);
+            DrawTexturePro(txinfo[TX_HERO], src, dst, origin, 0.0f, WHITE);
             //DrawRectangleLinesEx(dst, 1.0f, RED);
             //DrawRectangleLinesEx(hit_box, 1.0f, BLUE);
         } else if (type == ENTITY_SWORD) {
             Rectangle src = {0, 0, 8, 5};
-            Vector2 origin = {0, 0};
-            Rectangle hit_box = get_hitbox(id);
-            Rectangle dst = {hit_box.x, hit_box.y, 8, 5};
-            float rotation = 0.0f;
-            DrawTexturePro(txinfo[1], src, dst, origin, rotation, WHITE);
+            Rectangle hb = get_hitbox(id);
+            Rectangle dst = {hb.x, hb.y, 8, 5};
+            DrawTexturePro(txinfo[TX_SWORD], src, dst, origin, 0.0f, WHITE);
             //DrawRectangleLinesEx(hit_box, 1.0f, BLUE);
+        } else if (type == ENTITY_ORC) {
+            Rectangle src = {0, 0, -7, 7};
+            Rectangle dst = {pos.x, pos.y, 7, 7};
+            DrawTexturePro(txinfo[TX_ORC], src, dst, origin, 0.0f, WHITE);
         }
     }
     EndMode2D();
@@ -479,6 +534,19 @@ void update_state() {
     } else {
         set_pos(sword_id, (Vector2){-1, -1});
         set_hitbox(sword_id, (Rectangle){-1, -1, -1, -1});
+    }
+
+    for (auto row : component_table) {
+        entityid id = row.first;
+        if (has_comp(id, C_VELOCITY)) {
+            Vector2 p = get_pos(id);
+            Vector2 v = get_velocity(id);
+
+            p.x += v.x;
+            p.y += v.y;
+
+            set_pos(id, p);
+        }
     }
 }
 
