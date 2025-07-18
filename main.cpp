@@ -4,7 +4,6 @@
 #include <string>
 #include <raylib.h>
 
-
 using std::string;
 using std::unordered_map;
 
@@ -66,7 +65,6 @@ string comp2str(component c) {
     }
 }
 
-
 string entity_type2str(entity_type t) {
     switch (t) {
     case ENTITY_NONE:
@@ -81,7 +79,6 @@ string entity_type2str(entity_type t) {
         return "UNKNOWN_TYPE";
     }
 }
-
 
 string game_scene2str(game_scene s) {
     switch (s) {
@@ -98,11 +95,9 @@ string game_scene2str(game_scene s) {
     }
 }
 
-
 bool entity_exists(entityid id) {
     return component_table.find(id) != component_table.end();
 }
-
 
 entityid add_entity() {
     entityid id = next_entityid;
@@ -111,7 +106,6 @@ entityid add_entity() {
     next_entityid++;
     return id;
 }
-
 
 bool remove_entity(entityid id) {
     auto it = component_table.find(id);
@@ -122,7 +116,6 @@ bool remove_entity(entityid id) {
     return false;
 }
 
-
 bool set_comp(entityid id, component c) {
     if (!entity_exists(id)) return false;
     if (c < 0 || c >= C_COUNT) return false;
@@ -130,13 +123,11 @@ bool set_comp(entityid id, component c) {
     return true;
 }
 
-
 bool has_comp(entityid id, component c) {
     if (!entity_exists(id)) return false;
     if (c < 0 || c >= C_COUNT) return false;
     return (component_table[id] & (1L << c)) != 0; // Check if the component bit is set
 }
-
 
 bool set_name(entityid id, string name) {
     if (!entity_exists(id)) return false;
@@ -145,14 +136,12 @@ bool set_name(entityid id, string name) {
     return true;
 }
 
-
 string get_name(entityid id) {
     if (!has_comp(id, C_NAME)) return "no-name";
     auto it = names.find(id);
     if (it != names.end()) return it->second;
     return "no-name"; // Return empty string if name not found
 }
-
 
 bool set_type(entityid id, entity_type t) {
     if (!entity_exists(id)) return false;
@@ -161,14 +150,12 @@ bool set_type(entityid id, entity_type t) {
     return true;
 }
 
-
 entity_type get_type(entityid id) {
     if (!has_comp(id, C_TYPE)) return ENTITY_NONE;
     auto it = types.find(id);
     if (it != types.end()) return it->second;
     return ENTITY_NONE; // Return default type if not found
 }
-
 
 bool set_pos(entityid id, Vector2 pos) {
     if (!entity_exists(id)) return false;
@@ -177,14 +164,12 @@ bool set_pos(entityid id, Vector2 pos) {
     return true;
 }
 
-
 Vector2 get_pos(entityid id) {
     if (!has_comp(id, C_POSITION)) return (Vector2){-1, -1};
     auto it = positions.find(id);
     if (it != positions.end()) return it->second;
     return (Vector2){-1, -1};
 }
-
 
 bool update_y_pos(entityid id, float incr) {
     Vector2 pos = get_pos(id);
@@ -193,14 +178,12 @@ bool update_y_pos(entityid id, float incr) {
     return true;
 }
 
-
 bool update_x_pos(entityid id, float incr) {
     Vector2 pos = get_pos(id);
     pos.x += incr;
     set_pos(id, pos);
     return true;
 }
-
 
 bool update_xy_pos(entityid id, float incr_x, float incr_y) {
     Vector2 pos = get_pos(id);
@@ -210,7 +193,6 @@ bool update_xy_pos(entityid id, float incr_x, float incr_y) {
     return true;
 }
 
-
 bool set_hitbox(entityid id, Rectangle rect) {
     if (!entity_exists(id)) return false;
     set_comp(id, C_HITBOX);
@@ -218,14 +200,12 @@ bool set_hitbox(entityid id, Rectangle rect) {
     return true;
 }
 
-
 Rectangle get_hitbox(entityid id) {
     if (!has_comp(id, C_HITBOX)) return (Rectangle){-1, -1, -1, -1};
     auto it = hitboxes.find(id);
     if (it != hitboxes.end()) return it->second;
     return (Rectangle){-1, -1, -1, -1};
 }
-
 
 bool update_hitbox_x(entityid id, float incr) {
     Rectangle hitbox = get_hitbox(id);
@@ -235,7 +215,6 @@ bool update_hitbox_x(entityid id, float incr) {
     return true;
 }
 
-
 bool update_hitbox_y(entityid id, float incr) {
     Rectangle hitbox = get_hitbox(id);
     if (hitbox.x < 0 || hitbox.y < 0) return false; // Invalid hitbox
@@ -244,7 +223,6 @@ bool update_hitbox_y(entityid id, float incr) {
     return true;
 }
 
-
 bool set_velocity(entityid id, Vector2 v) {
     if (!entity_exists(id)) return false;
     set_comp(id, C_VELOCITY);
@@ -252,14 +230,12 @@ bool set_velocity(entityid id, Vector2 v) {
     return true;
 }
 
-
 Vector2 get_velocity(entityid id) {
     if (!has_comp(id, C_VELOCITY)) return origin;
     auto it = velocities.find(id);
     if (it != velocities.end()) return it->second;
     return origin;
 }
-
 
 bool create_player() {
     entityid id = add_entity();
@@ -278,7 +254,6 @@ bool create_player() {
     return true;
 }
 
-
 bool create_sword() {
     entityid id = add_entity();
     if (id == ENTITYID_INVALID) return false;
@@ -290,7 +265,6 @@ bool create_sword() {
     return true;
 }
 
-
 bool create_orc() {
     entityid id = add_entity();
     if (id == ENTITYID_INVALID) return false;
@@ -299,22 +273,14 @@ bool create_orc() {
     float w = txinfo[0].width * 1.0f;
     float h = txinfo[0].height * 1.0f;
     // Select a random x,yf appropriate to the scene
-    //float x = GetRandomValue(0, target_w - (int)w);
-    //float y = GetRandomValue(0, target_h - (int)h);
     Vector2 p = get_pos(hero_id);
     p.x += 40;
-    //Vector2 v = {x, y};
     set_pos(id, p);
     Rectangle hitbox = {p.x, p.y, w, h};
     set_hitbox(id, hitbox);
-
-    Vector2 v = {-0.1f, 0.0};
-    set_velocity(id, v);
-
-    //hero_id = id;
+    set_velocity(id, (Vector2){-0.1, 0});
     return true;
 }
-
 
 void handle_input_gameplay() {
     if (IsKeyDown(KEY_DOWN)) {
@@ -334,26 +300,14 @@ void handle_input_gameplay() {
         update_hitbox_x(hero_id, 0.5);
     }
     if (IsKeyDown(KEY_SPACE)) {
-        //Vector2 pos = get_pos(hero_id);
-        //set_pos(sword_id, pos);
-        //Rectangle hb = get_hitbox(hero_id);
-        //hb.x = hb.x + hb.width;
-        //hb.y = hb.y + hb.height / 2.0f - 2;
-        //hb = {hb.x, hb.y, 8, 5};
-        //set_hitbox(sword_id, hb);
         player_attacking = true;
     } else if (IsKeyUp(KEY_SPACE)) {
         player_attacking = false;
-        //    set_pos(sword_id, (Vector2){-1, -1});
-        //    set_hitbox(sword_id, (Rectangle){-1, -1, -1, -1});
     }
-
-
     if (IsKeyPressed(KEY_C)) {
         create_orc();
     }
 }
-
 
 void handle_input_company() {
     if (IsKeyPressed(KEY_ENTER)) {
@@ -362,14 +316,12 @@ void handle_input_company() {
     }
 }
 
-
 void handle_input_title() {
     if (IsKeyPressed(KEY_ENTER)) {
         current_scene = SCENE_GAMEPLAY;
         debug_txt_color = WHITE;
     }
 }
-
 
 void handle_input() {
     if (current_scene == SCENE_COMPANY)
@@ -379,7 +331,6 @@ void handle_input() {
     else if (current_scene == SCENE_GAMEPLAY)
         handle_input_gameplay();
 }
-
 
 void draw_debug_panel() {
     int x = 10, y = 10, s = 20;
@@ -397,7 +348,6 @@ void draw_debug_panel() {
     DrawText(TextFormat("Hero.pos: %.1f,%.1f", p.x, p.y), x, y, s, debug_txt_color);
 }
 
-
 void draw_company() {
     ClearBackground(BLACK);
     int s = 20;
@@ -409,7 +359,6 @@ void draw_company() {
     DrawText(text, x, y, s, c);
 }
 
-
 void draw_title() {
     ClearBackground(WHITE);
     int s = 30;
@@ -419,7 +368,6 @@ void draw_title() {
     int y = target_h / 2 - s;
     DrawText(text, x, y, s, BLACK);
 }
-
 
 void draw_gameplay() {
     BeginMode2D(cam2d);
@@ -453,7 +401,6 @@ void draw_gameplay() {
     EndMode2D();
 }
 
-
 void draw_frame() {
     if (IsWindowResized()) {
         window_dst.width = GetScreenWidth();
@@ -475,11 +422,9 @@ void draw_frame() {
     frame_count++;
 }
 
-
 void load_texture(int index, const char* path) {
     txinfo[index] = LoadTexture(path);
 }
-
 
 void load_textures() {
     load_texture(0, "img/human.png");
@@ -487,13 +432,11 @@ void load_textures() {
     load_texture(2, "img/orc.png");
 }
 
-
 void unload_textures() {
     UnloadTexture(txinfo[0]);
     UnloadTexture(txinfo[1]);
     UnloadTexture(txinfo[2]);
 }
-
 
 void init_gfx() {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
@@ -513,14 +456,12 @@ void init_gfx() {
     load_textures();
 }
 
-
 void init_data() {
     if (!create_player() || !create_sword()) {
         fprintf(stderr, "Failed to create player or sword entity\n");
         exit(EXIT_FAILURE);
     }
 }
-
 
 void update_state() {
     if (player_attacking) {
@@ -535,21 +476,17 @@ void update_state() {
         set_pos(sword_id, (Vector2){-1, -1});
         set_hitbox(sword_id, (Rectangle){-1, -1, -1, -1});
     }
-
     for (auto row : component_table) {
         entityid id = row.first;
         if (has_comp(id, C_VELOCITY)) {
             Vector2 p = get_pos(id);
             Vector2 v = get_velocity(id);
-
             p.x += v.x;
             p.y += v.y;
-
             set_pos(id, p);
         }
     }
 }
-
 
 int main() {
     init_gfx();

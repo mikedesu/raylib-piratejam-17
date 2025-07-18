@@ -18,3 +18,10 @@ Because the theme is "only one":
   - Who can kill the most?
   - Who can level-up their sword the furthest?
 
+### 02:05 am
+
+- Orcs spawning with velocity. 
+- Need collision soon.
+- Need off-screen removal.
+- Need kill count.
+- Need parallax scrolling.
