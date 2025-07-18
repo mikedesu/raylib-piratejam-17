@@ -19,7 +19,20 @@ typedef enum { C_NAME, C_TYPE, C_POSITION, C_COUNT } component;
 typedef enum { ENTITY_NONE, ENTITY_HERO, ENTITY_COUNT } entity_type;
 
 
-typedef enum { SCENE_TITLE, SCENE_GAMEPLAY, SCENE_GAMEOVER, SCENE_COUNT } game_scene;
+typedef enum { SCENE_COMPANY, SCENE_TITLE, SCENE_GAMEPLAY, SCENE_GAMEOVER, SCENE_COUNT } game_scene;
+
+
+const char* game_window_title = "evildojo666 presents: gamejam 2025";
+int window_w = 1280;
+int window_h = 720;
+int target_w = 800;
+int target_h = 480;
+int window_size_min_w = 320;
+int window_size_min_h = 240;
+int target_fps = 60;
+float default_zoom = 8;
+game_scene current_scene = SCENE_COMPANY;
+Color debug_txt_color = WHITE;
 
 
 typedef struct {
@@ -36,17 +49,6 @@ typedef struct {
     int cols;
     Texture2D* texture;
 } sprite;
-
-
-const char* game_window_title = "evildojo666 presents: gamejam 2025";
-int window_w = 1280;
-int window_h = 720;
-int target_w = 1280;
-int target_h = 720;
-int window_size_min_w = 320;
-int window_size_min_h = 240;
-int target_fps = 60;
-float default_zoom = 8;
 
 
 RenderTexture target_texture;
@@ -98,14 +100,16 @@ string entity_type2str(entity_type t) {
 
 string game_scene2str(game_scene s) {
     switch (s) {
+    case SCENE_COMPANY:
+        return "COMPANY";
     case SCENE_TITLE:
-        return "SCENE_TITLE";
+        return "TITLE";
     case SCENE_GAMEPLAY:
-        return "SCENE_GAMEPLAY";
+        return "GAMEPLAY";
     case SCENE_GAMEOVER:
-        return "SCENE_GAMEOVER";
+        return "GAMEOVER";
     default:
-        return "UNKNOWN_GAME_SCENE";
+        return "UNKNOWN_SCENE";
     }
 }
 
@@ -197,20 +201,37 @@ Vector2 get_pos(entityid id) {
 }
 
 
+void handle_input_gameplay() {
+    if (IsKeyDown(KEY_Z)) cam2d.zoom += 0.1f;
+    if (IsKeyDown(KEY_X)) cam2d.zoom -= 0.1f;
+
+    //if (IsKeyPressed(KEY_C)) {
+    // create a new entity
+    //    entityid id = add_entity();
+    //    set_name(id, "darkmage");
+    //    set_type(id, ENTITY_NONE);
+    //
+    //        float x = GetRandomValue(10, target_w / 8);
+    //        float y = GetRandomValue(10, target_h / 8);
+    //        Vector2 v = {x, y};
+    //        set_pos(id, v);
+    //    }
+}
+
+
 void handle_input() {
-    //if (IsKeyDown(KEY_Z)) cam2d.zoom += 0.1f;
-    //if (IsKeyDown(KEY_X)) cam2d.zoom -= 0.1f;
-
-    if (IsKeyPressed(KEY_C)) {
-        // create a new entity
-        entityid id = add_entity();
-        set_name(id, "darkmage");
-        set_type(id, ENTITY_NONE);
-
-        float x = GetRandomValue(10, target_w / 8);
-        float y = GetRandomValue(10, target_h / 8);
-        Vector2 v = {x, y};
-        set_pos(id, v);
+    if (current_scene == SCENE_COMPANY) {
+        if (IsKeyPressed(KEY_ENTER)) {
+            current_scene = SCENE_TITLE;
+            debug_txt_color = BLACK;
+        }
+    } else if (current_scene == SCENE_TITLE) {
+        if (IsKeyPressed(KEY_ENTER)) {
+            current_scene = SCENE_GAMEPLAY;
+            debug_txt_color = BLACK;
+        }
+    } else if (current_scene == SCENE_GAMEPLAY) {
+        handle_input_gameplay();
     }
 }
 
@@ -218,10 +239,40 @@ void handle_input() {
 void draw_debug_panel() {
     int x = 10;
     int y = 10;
-    int s = 10;
-    DrawText(TextFormat("Frame %d", frame_count), x, y, s, WHITE);
+    int s = 20;
+    DrawText(TextFormat("Frame %d", frame_count), x, y, s, debug_txt_color);
     y += s;
-    DrawText(TextFormat("FPS: %d", GetFPS()), x, y, s, WHITE);
+    DrawText(TextFormat("FPS: %d", GetFPS()), x, y, s, debug_txt_color);
+    y += s;
+    DrawText(TextFormat("Zoom: %.1f", cam2d.zoom), x, y, s, debug_txt_color);
+}
+
+
+void draw_company() {
+    ClearBackground(BLACK);
+    int s = 20;
+    const char* text = "evildojo666";
+    int m = MeasureText(text, s);
+    int x = target_w / 2 - m / 2;
+    int y = target_h / 2 - s;
+    Color c = {0x66, 0x66, 0x66, 255};
+    DrawText(text, x, y, s, c);
+}
+
+
+void draw_title() {
+    ClearBackground(WHITE);
+    int s = 30;
+    const char* text = "There can be...";
+    int m = MeasureText(text, s);
+    int x = target_w / 2 - m / 2;
+    int y = target_h / 2 - s;
+    DrawText(text, x, y, s, BLACK);
+}
+
+
+void draw_gameplay() {
+    ClearBackground(WHITE);
 }
 
 
@@ -233,12 +284,11 @@ void draw_frame() {
 
     BeginDrawing();
     BeginTextureMode(target_texture);
-    BeginMode2D(cam2d);
-    ClearBackground(BLACK);
 
-    DrawText("evildojo666", 0, 0, 10, (Color){0x66, 0x66, 0x66, 255});
+    //BeginMode2D(cam2d);
+    //ClearBackground(BLACK);
+    //DrawRectangle(0, 0, target_w / 8, target_h / 8, RED);
     //DrawText(TextFormat("entity count: %ld\n", component_table.size()), 0, 10 + 10, 10, (Color){0xFF, 0xFF, 0xFF, 255});
-
     //for (auto id : component_table) {
     //if (has_comp(id.first, C_POSITION)) {
     //    Vector2 pos = get_pos(id.first);
@@ -254,12 +304,22 @@ void draw_frame() {
     //                           WHITE);
     //        }
     //}
+    //EndMode2D();
 
-    EndMode2D();
+    if (current_scene == SCENE_COMPANY) {
+        draw_company();
+    } else if (current_scene == SCENE_TITLE) {
+        draw_title();
+    } else if (current_scene == SCENE_GAMEPLAY) {
+        draw_gameplay();
+    }
+
     EndTextureMode();
 
     ClearBackground(BLACK);
     DrawTexturePro(target_texture.texture, target_src, window_dst, origin, 0.0f, WHITE);
+
+
     draw_debug_panel();
     EndDrawing();
     frame_count++;
