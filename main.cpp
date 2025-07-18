@@ -8,27 +8,11 @@
 using std::string;
 using std::unordered_map;
 
-
 typedef int entityid;
 typedef int textureid;
 typedef enum { C_NAME, C_TYPE, C_POSITION, C_HITBOX, C_COUNT } component;
 typedef enum { ENTITY_NONE, ENTITY_HERO, ENTITY_SWORD, ENTITY_ORC, ENTITY_COUNT } entity_type;
 typedef enum { SCENE_COMPANY, SCENE_TITLE, SCENE_GAMEPLAY, SCENE_GAMEOVER, SCENE_COUNT } game_scene;
-
-
-bool create_player();
-bool set_pos(entityid id, Vector2 pos);
-Vector2 get_pos(entityid id);
-string comp2str(component c);
-string entity_type2str(entity_type t);
-string comp2str(component c);
-void init_data();
-void handle_input_company();
-void handle_input_title();
-void handle_input();
-void handle_input_gameplay();
-void draw_gameplay();
-
 
 const char* game_window_title = "evildojo666 presents: gamejam 2025";
 int window_w = 1280;
@@ -41,11 +25,6 @@ int target_fps = 60;
 float default_zoom = 8;
 game_scene current_scene = SCENE_COMPANY;
 Color debug_txt_color = WHITE;
-typedef struct {
-    int rows;
-    int cols;
-    Texture2D texture;
-} texture_info;
 RenderTexture target_texture;
 Rectangle target_src;
 Rectangle target_dst;
@@ -53,7 +32,7 @@ Rectangle window_dst;
 Vector2 origin;
 Camera2D cam2d;
 int frame_count = 0;
-texture_info txinfo[32];
+Texture2D txinfo[32];
 unordered_map<entityid, long> component_table;
 unordered_map<entityid, string> names;
 unordered_map<entityid, entity_type> types;
@@ -63,6 +42,7 @@ entityid next_entityid = 0;
 const entityid ENTITYID_INVALID = -1;
 entityid hero_id = ENTITYID_INVALID;
 entityid sword_id = ENTITYID_INVALID;
+bool player_attacking = false;
 
 
 string comp2str(component c) {
@@ -109,17 +89,17 @@ string game_scene2str(game_scene s) {
 }
 
 
-entityid add_entity() {
-    entityid id = next_entityid;
-    if (component_table.find(id) != component_table.end()) return ENTITYID_INVALID;
-    component_table[id] = 0; // Initialize with no components
-    next_entityid++;
-    return id;
+bool entity_exists(entityid id) {
+    return component_table.find(id) != component_table.end();
 }
 
 
-bool entity_exists(entityid id) {
-    return component_table.find(id) != component_table.end();
+entityid add_entity() {
+    entityid id = next_entityid;
+    if (entity_exists(id)) return ENTITYID_INVALID;
+    component_table[id] = 0;
+    next_entityid++;
+    return id;
 }
 
 
@@ -260,10 +240,13 @@ bool create_player() {
     if (id == ENTITYID_INVALID) return false;
     set_name(id, "hero");
     set_type(id, ENTITY_HERO);
-    float x = target_w / 16.0, y = target_h / 16.0;
+    float w = txinfo[0].width * 1.0f;
+    float h = txinfo[0].height * 1.0f;
+    float x = target_w / 16.0 + w;
+    float y = target_h / 8.0 - h / 2;
     Vector2 v = {x, y};
     set_pos(id, v);
-    Rectangle hitbox = {x, y, 7, 7};
+    Rectangle hitbox = {x, y, w, h};
     set_hitbox(id, hitbox);
     hero_id = id;
     return true;
@@ -300,16 +283,18 @@ void handle_input_gameplay() {
         update_hitbox_x(hero_id, 0.5);
     }
     if (IsKeyDown(KEY_SPACE)) {
-        Vector2 pos = get_pos(hero_id);
-        set_pos(sword_id, pos);
-        Rectangle hb = get_hitbox(hero_id);
-        hb.x = hb.x + hb.width;
-        hb.y = hb.y + hb.height / 2.0f - 2;
-        hb = {hb.x, hb.y, 8, 5};
-        set_hitbox(sword_id, hb);
+        //Vector2 pos = get_pos(hero_id);
+        //set_pos(sword_id, pos);
+        //Rectangle hb = get_hitbox(hero_id);
+        //hb.x = hb.x + hb.width;
+        //hb.y = hb.y + hb.height / 2.0f - 2;
+        //hb = {hb.x, hb.y, 8, 5};
+        //set_hitbox(sword_id, hb);
+        player_attacking = true;
     } else if (IsKeyUp(KEY_SPACE)) {
-        set_pos(sword_id, (Vector2){-1, -1});
-        set_hitbox(sword_id, (Rectangle){-1, -1, -1, -1});
+        player_attacking = false;
+        //    set_pos(sword_id, (Vector2){-1, -1});
+        //    set_hitbox(sword_id, (Rectangle){-1, -1, -1, -1});
     }
 }
 
@@ -397,7 +382,7 @@ void draw_gameplay() {
             Rectangle dst = {pos.x, pos.y, 7, 7};
             Vector2 origin = {0, 0};
             Rectangle hit_box = get_hitbox(id);
-            DrawTexturePro(txinfo[0].texture, src, dst, origin, 0.0f, WHITE);
+            DrawTexturePro(txinfo[0], src, dst, origin, 0.0f, WHITE);
             //DrawRectangleLinesEx(dst, 1.0f, RED);
             //DrawRectangleLinesEx(hit_box, 1.0f, BLUE);
         } else if (type == ENTITY_SWORD) {
@@ -406,7 +391,7 @@ void draw_gameplay() {
             Rectangle hit_box = get_hitbox(id);
             Rectangle dst = {hit_box.x, hit_box.y, 8, 5};
             float rotation = 0.0f;
-            DrawTexturePro(txinfo[1].texture, src, dst, origin, rotation, WHITE);
+            DrawTexturePro(txinfo[1], src, dst, origin, rotation, WHITE);
             //DrawRectangleLinesEx(hit_box, 1.0f, BLUE);
         }
     }
@@ -436,24 +421,22 @@ void draw_frame() {
 }
 
 
-void load_texture(int index, int rows, int cols, const char* path) {
-    if (index < 0 || rows < 0 || cols < 0) return;
-    txinfo[index].cols = cols;
-    txinfo[index].rows = rows;
-    txinfo[index].texture = LoadTexture(path);
+void load_texture(int index, const char* path) {
+    txinfo[index] = LoadTexture(path);
 }
 
 
 void load_textures() {
-    load_texture(0, 1, 1, "img/human.png");
-    load_texture(1, 1, 1, "img/sword.png");
+    load_texture(0, "img/human.png");
+    load_texture(1, "img/sword.png");
+    load_texture(2, "img/orc.png");
 }
 
 
 void unload_textures() {
-    UnloadTexture(txinfo[0].texture);
-    UnloadTexture(txinfo[1].texture);
-    UnloadTexture(txinfo[2].texture);
+    UnloadTexture(txinfo[0]);
+    UnloadTexture(txinfo[1]);
+    UnloadTexture(txinfo[2]);
 }
 
 
@@ -484,11 +467,28 @@ void init_data() {
 }
 
 
+void update_state() {
+    if (player_attacking) {
+        Vector2 pos = get_pos(hero_id);
+        set_pos(sword_id, pos);
+        Rectangle hb = get_hitbox(hero_id);
+        hb.x = hb.x + hb.width;
+        hb.y = hb.y + hb.height / 2.0f - 2;
+        hb = {hb.x, hb.y, 8, 5};
+        set_hitbox(sword_id, hb);
+    } else {
+        set_pos(sword_id, (Vector2){-1, -1});
+        set_hitbox(sword_id, (Rectangle){-1, -1, -1, -1});
+    }
+}
+
+
 int main() {
     init_gfx();
     init_data();
     while (!WindowShouldClose()) {
         handle_input();
+        update_state();
         draw_frame();
     }
     unload_textures();
