@@ -25,3 +25,7 @@ Because the theme is "only one":
 - Need off-screen removal.
 - Need kill count.
 - Need parallax scrolling.
+
+### 2:22 am
+
+current LOC: 503 including whitespace

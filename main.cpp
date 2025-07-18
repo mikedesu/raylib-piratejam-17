@@ -1,22 +1,27 @@
 #include <cstdio>
 #include <cstdlib>
 #include <unordered_map>
+#include <map>
 #include <string>
+#include <vector>
 #include <raylib.h>
+#include <raymath.h>
 
+using std::map;
 using std::string;
 using std::unordered_map;
+using std::vector;
 
 typedef int entityid;
 typedef int textureid;
-typedef enum { C_NAME, C_TYPE, C_POSITION, C_HITBOX, C_VELOCITY, C_COUNT } component;
+typedef enum { C_NAME, C_TYPE, C_POSITION, C_HITBOX, C_VELOCITY, C_COLLIDES, C_DESTROY, C_COUNT } component;
 typedef enum { ENTITY_NONE, ENTITY_HERO, ENTITY_SWORD, ENTITY_ORC, ENTITY_COUNT } entity_type;
 typedef enum { SCENE_COMPANY, SCENE_TITLE, SCENE_GAMEPLAY, SCENE_GAMEOVER, SCENE_COUNT } game_scene;
 typedef enum { TX_HERO, TX_SWORD, TX_ORC, TX_COUNT } tx_index;
 
-const char* game_window_title = "evildojo666 presents: gamejam 2025";
-int window_w = 1280;
-int window_h = 720;
+const char* game_window_title = "evildojo666 presents: There can be...";
+int window_w = 1920;
+int window_h = 1080;
 int target_w = 800;
 int target_h = 480;
 int window_size_min_w = 320;
@@ -33,18 +38,28 @@ const Vector2 origin = {0, 0};
 Camera2D cam2d;
 int frame_count = 0;
 Texture2D txinfo[32];
-unordered_map<entityid, long> component_table;
+//unordered_map<entityid, bool> entities;
+
+
+vector<entityid> cleanup;
+//unordered_map<entityid, long> component_table;
+map<entityid, long> component_table;
 unordered_map<entityid, string> names;
 unordered_map<entityid, entity_type> types;
 unordered_map<entityid, Vector2> positions;
 unordered_map<entityid, Rectangle> hitboxes;
 unordered_map<entityid, Vector2> velocities;
+unordered_map<entityid, bool> collides;
+unordered_map<entityid, bool> destroy;
 entityid next_entityid = 0;
 const entityid ENTITYID_INVALID = -1;
 entityid hero_id = ENTITYID_INVALID;
 entityid sword_id = ENTITYID_INVALID;
 bool player_attacking = false;
 
+int hero_collision_counter = 0;
+int sword_collision_counter = 0;
+int entities_destroyed = 0;
 
 string comp2str(component c) {
     switch (c) {
@@ -58,6 +73,10 @@ string comp2str(component c) {
         return "HITBOX";
     case C_VELOCITY:
         return "VELOCITY";
+    case C_COLLIDES:
+        return "COLLIDES";
+    case C_DESTROY:
+        return "DESTROY";
     case C_COUNT:
         return "COUNT";
     default:
@@ -103,6 +122,7 @@ entityid add_entity() {
     entityid id = next_entityid;
     if (entity_exists(id)) return ENTITYID_INVALID;
     component_table[id] = 0;
+    //entities[id] = true;
     next_entityid++;
     return id;
 }
@@ -237,6 +257,34 @@ Vector2 get_velocity(entityid id) {
     return origin;
 }
 
+bool set_collides(entityid id, bool c) {
+    if (!entity_exists(id)) return false;
+    set_comp(id, C_COLLIDES);
+    collides[id] = c;
+    return true;
+}
+
+bool get_collides(entityid id) {
+    if (!has_comp(id, C_COLLIDES)) return false;
+    auto it = collides.find(id);
+    if (it != collides.end()) return it->second;
+    return false;
+}
+
+bool set_destroy(entityid id, bool c) {
+    if (!entity_exists(id)) return false;
+    set_comp(id, C_DESTROY);
+    destroy[id] = c;
+    return true;
+}
+
+bool get_destroy(entityid id) {
+    if (!has_comp(id, C_DESTROY)) return false;
+    auto it = destroy.find(id);
+    if (it != destroy.end()) return it->second;
+    return false;
+}
+
 bool create_player() {
     entityid id = add_entity();
     if (id == ENTITYID_INVALID) return false;
@@ -248,8 +296,10 @@ bool create_player() {
     float y = target_h / 8.0 - h / 2;
     Vector2 v = {x, y};
     set_pos(id, v);
-    Rectangle hitbox = {x, y, w, h};
+    Rectangle hitbox = {x + 2, y + 1, w - 4, h - 1};
     set_hitbox(id, hitbox);
+    set_collides(id, true);
+    set_destroy(id, false);
     hero_id = id;
     return true;
 }
@@ -261,6 +311,8 @@ bool create_sword() {
     set_type(id, ENTITY_SWORD);
     set_pos(id, (Vector2){-1, -1});
     set_hitbox(id, (Rectangle){-1, -1, -1, -1});
+    set_collides(id, true);
+    set_destroy(id, false);
     sword_id = id;
     return true;
 }
@@ -274,11 +326,13 @@ bool create_orc() {
     float h = txinfo[0].height * 1.0f;
     // Select a random x,yf appropriate to the scene
     Vector2 p = get_pos(hero_id);
-    p.x += 40;
+    p.x += 160;
     set_pos(id, p);
     Rectangle hitbox = {p.x, p.y, w, h};
     set_hitbox(id, hitbox);
-    set_velocity(id, (Vector2){-0.1, 0});
+    set_velocity(id, (Vector2){-0.5, 0});
+    set_collides(id, true);
+    set_destroy(id, false);
     return true;
 }
 
@@ -299,14 +353,16 @@ void handle_input_gameplay() {
         update_x_pos(hero_id, 0.5);
         update_hitbox_x(hero_id, 0.5);
     }
-    if (IsKeyDown(KEY_SPACE)) {
+    //if (IsKeyDown(KEY_SPACE)) {
+    //if (IsKeyPressed(KEY_SPACE)) {
+    if (IsKeyPressed(KEY_A)) {
         player_attacking = true;
-    } else if (IsKeyUp(KEY_SPACE)) {
+    } else if (IsKeyUp(KEY_A)) {
         player_attacking = false;
     }
-    if (IsKeyPressed(KEY_C)) {
-        create_orc();
-    }
+    //if (IsKeyPressed(KEY_C)) {
+    //    create_orc();
+    //}
 }
 
 void handle_input_company() {
@@ -334,18 +390,27 @@ void handle_input() {
 
 void draw_debug_panel() {
     int x = 10, y = 10, s = 20;
-    DrawText(TextFormat("Frame %d", frame_count), x, y, s, debug_txt_color);
+    Color c = debug_txt_color;
+    DrawText(TextFormat("Frame %d", frame_count), x, y, s, c);
     y += s;
-    DrawText(TextFormat("FPS: %d", GetFPS()), x, y, s, debug_txt_color);
+    DrawText(TextFormat("FPS: %d", GetFPS()), x, y, s, c);
     y += s;
-    DrawText(TextFormat("Cam.pos: %.1f,%.1f", cam2d.target.x, cam2d.target.y), x, y, s, debug_txt_color);
+    DrawText(TextFormat("Cam.pos: %.1f,%.1f", cam2d.target.x, cam2d.target.y), x, y, s, c);
     y += s;
-    DrawText(TextFormat("Cam.offset: %.1f,%.1f", cam2d.offset.x, cam2d.offset.y), x, y, s, debug_txt_color);
+    DrawText(TextFormat("Cam.offset: %.1f,%.1f", cam2d.offset.x, cam2d.offset.y), x, y, s, c);
     y += s;
-    DrawText(TextFormat("Zoom: %.1f", cam2d.zoom), x, y, s, debug_txt_color);
+    DrawText(TextFormat("Zoom: %.1f", cam2d.zoom), x, y, s, c);
     y += s;
     Vector2 p = get_pos(hero_id);
-    DrawText(TextFormat("Hero.pos: %.1f,%.1f", p.x, p.y), x, y, s, debug_txt_color);
+    DrawText(TextFormat("Hero.pos: %.1f,%.1f", p.x, p.y), x, y, s, c);
+    y += s;
+    DrawText(TextFormat("Hero Collisions: %d", hero_collision_counter), x, y, s, c);
+    y += s;
+    DrawText(TextFormat("Sword Collisions: %d", sword_collision_counter), x, y, s, c);
+    y += s;
+    DrawText(TextFormat("Entities created: %d", next_entityid), x, y, s, c);
+    y += s;
+    DrawText(TextFormat("Entities destroyed: %d", entities_destroyed), x, y, s, c);
 }
 
 void draw_company() {
@@ -377,25 +442,33 @@ void draw_gameplay() {
     for (auto it : component_table) {
         entityid id = it.first;
         if (!has_comp(id, C_POSITION)) continue;
+        //if (has_comp(id, C_DESTROY) && get_destroy(id)) {
+        //    entities_destroyed++;
+        //    remove_entity(id);
+        //    continue;
+        //}
         Vector2 pos = get_pos(id);
         if (pos.x < 0 || pos.y < 0) continue;
         entity_type type = get_type(id);
         if (type == ENTITY_HERO) {
             Rectangle src = {0, 0, 7, 7};
             Rectangle dst = {pos.x, pos.y, 7, 7};
+            Rectangle hb = get_hitbox(id);
             DrawTexturePro(txinfo[TX_HERO], src, dst, origin, 0.0f, WHITE);
             //DrawRectangleLinesEx(dst, 1.0f, RED);
-            //DrawRectangleLinesEx(hit_box, 1.0f, BLUE);
+            DrawRectangleLinesEx(hb, 1.0f, (Color){0xFF, 0, 0, 127});
         } else if (type == ENTITY_SWORD) {
             Rectangle src = {0, 0, 8, 5};
             Rectangle hb = get_hitbox(id);
-            Rectangle dst = {hb.x, hb.y, 8, 5};
+            Rectangle dst = {pos.x, pos.y, 8, 5};
             DrawTexturePro(txinfo[TX_SWORD], src, dst, origin, 0.0f, WHITE);
-            //DrawRectangleLinesEx(hit_box, 1.0f, BLUE);
+            DrawRectangleLinesEx(hb, 1.0f, (Color){0xFF, 0, 0, 127});
         } else if (type == ENTITY_ORC) {
             Rectangle src = {0, 0, -7, 7};
             Rectangle dst = {pos.x, pos.y, 7, 7};
+            Rectangle hb = get_hitbox(id);
             DrawTexturePro(txinfo[TX_ORC], src, dst, origin, 0.0f, WHITE);
+            DrawRectangleLinesEx(hb, 1.0f, (Color){0xFF, 0, 0, 127});
         }
     }
     EndMode2D();
@@ -464,28 +537,71 @@ void init_data() {
 }
 
 void update_state() {
+    if (current_scene != SCENE_GAMEPLAY) return;
+
+    // every N frames, create_orc
+    int spawn_freq = 120;
+    if (frame_count % spawn_freq == 0) {
+        create_orc();
+    }
+
     if (player_attacking) {
         Vector2 pos = get_pos(hero_id);
-        set_pos(sword_id, pos);
         Rectangle hb = get_hitbox(hero_id);
         hb.x = hb.x + hb.width;
         hb.y = hb.y + hb.height / 2.0f - 2;
-        hb = {hb.x, hb.y, 8, 5};
+        Vector2 spos = {hb.x, hb.y};
+        hb = {hb.x, hb.y + 1, 8, 3};
         set_hitbox(sword_id, hb);
+        set_pos(sword_id, spos);
     } else {
         set_pos(sword_id, (Vector2){-1, -1});
         set_hitbox(sword_id, (Rectangle){-1, -1, -1, -1});
     }
+
+    // velocity-position update
     for (auto row : component_table) {
-        entityid id = row.first;
-        if (has_comp(id, C_VELOCITY)) {
-            Vector2 p = get_pos(id);
-            Vector2 v = get_velocity(id);
-            p.x += v.x;
-            p.y += v.y;
-            set_pos(id, p);
+        if (has_comp(row.first, C_VELOCITY)) {
+            Vector2 p = get_pos(row.first), v = get_velocity(row.first);
+            Rectangle hb = get_hitbox(row.first);
+            p.x += v.x, p.y += v.y;
+            set_pos(row.first, p);
+            hb.x += v.x, hb.y += v.y;
+            set_hitbox(row.first, hb);
         }
     }
+
+    // collision update
+    Rectangle hb = get_hitbox(hero_id), shb = get_hitbox(sword_id);
+    bool result = false;
+
+    // check for collision with hero
+    for (auto row : component_table) {
+        if (get_type(row.first) == ENTITY_ORC && CheckCollisionRecs(hb, get_hitbox(row.first))) {
+            hero_collision_counter++;
+            set_destroy(row.first, true);
+        }
+    }
+
+    // check for collision with sword
+    if (player_attacking) {
+        for (auto row : component_table) {
+            if (get_type(row.first) == ENTITY_ORC && CheckCollisionRecs(shb, get_hitbox(row.first))) {
+                sword_collision_counter++;
+                set_destroy(row.first, true);
+                player_attacking = false;
+            }
+        }
+    }
+
+    // perform entity cleanup based on the values in the 'destroy' table
+    cleanup.clear();
+    for (auto row : component_table)
+        if (get_destroy(row.first)) cleanup.push_back(row.first);
+    for (entityid id : cleanup) {
+        remove_entity(id);
+    }
+    entities_destroyed += cleanup.size();
 }
 
 int main() {
