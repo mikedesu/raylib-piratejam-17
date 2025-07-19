@@ -7,6 +7,11 @@
 #include <raylib.h>
 #include <raymath.h>
 
+#define SFX_CONFIRM 0
+#define SFX_HIT 1
+#define SFX_GET_HIT 2
+#define SFX_EQUIP 3
+
 using std::map;
 using std::string;
 using std::unordered_map;
@@ -17,7 +22,7 @@ typedef int textureid;
 typedef enum { C_NAME, C_TYPE, C_POSITION, C_HITBOX, C_VELOCITY, C_COLLIDES, C_DESTROY, C_COUNT } component;
 typedef enum { ENTITY_NONE, ENTITY_HERO, ENTITY_SWORD, ENTITY_ORC, ENTITY_COUNT } entity_type;
 typedef enum { SCENE_COMPANY, SCENE_TITLE, SCENE_GAMEPLAY, SCENE_GAMEOVER, SCENE_COUNT } game_scene;
-typedef enum { TX_HERO, TX_SWORD, TX_ORC, TX_COUNT } tx_index;
+typedef enum { TX_HERO, TX_SWORD, TX_ORC, TX_GRASS_00, TX_GRASS_01, TX_GRASS_02, TX_GRASS_03, TX_COUNT } tx_index;
 
 const char* game_window_title = "evildojo666 presents: There can be...";
 int window_w = 1920;
@@ -38,6 +43,9 @@ const Vector2 origin = {0, 0};
 Camera2D cam2d;
 int frame_count = 0;
 Texture2D txinfo[32];
+
+Sound sfx[32];
+
 //unordered_map<entityid, bool> entities;
 
 
@@ -357,6 +365,8 @@ void handle_input_gameplay() {
     //if (IsKeyPressed(KEY_SPACE)) {
     if (IsKeyPressed(KEY_A)) {
         player_attacking = true;
+
+        PlaySound(sfx[SFX_EQUIP]);
     } else if (IsKeyUp(KEY_A)) {
         player_attacking = false;
     }
@@ -369,6 +379,7 @@ void handle_input_company() {
     if (IsKeyPressed(KEY_ENTER)) {
         current_scene = SCENE_TITLE;
         debug_txt_color = BLACK;
+        PlaySound(sfx[SFX_CONFIRM]);
     }
 }
 
@@ -376,6 +387,7 @@ void handle_input_title() {
     if (IsKeyPressed(KEY_ENTER)) {
         current_scene = SCENE_GAMEPLAY;
         debug_txt_color = WHITE;
+        PlaySound(sfx[SFX_CONFIRM]);
     }
 }
 
@@ -437,8 +449,27 @@ void draw_title() {
 void draw_gameplay() {
     BeginMode2D(cam2d);
     ClearBackground(BLACK);
-    Color c = {0x33, 0x33, 0x33, 255};
-    DrawRectangle(0, 0, target_w / 8, target_h / 8, c);
+
+    Color c = BLUE;
+
+    float x = target_w / 16.0f;
+    float y = target_h / 16.0f;
+    float w = target_w / 8.0f;
+    float h = target_h / 8.0f;
+    DrawRectangle(x, y, w, h, c);
+
+    Rectangle src = {0, 0, 8, 8};
+    y += 32;
+
+    for (int j = 0; j < 4; j++) {
+        Rectangle dst = {x, y, 8, 8};
+        for (int i = 0; i < 13; i++) {
+            DrawTexturePro(txinfo[TX_GRASS_00], src, dst, origin, 0.0f, WHITE);
+            dst.x += 8;
+        }
+        y += 8;
+    }
+
     for (auto it : component_table) {
         entityid id = it.first;
         if (!has_comp(id, C_POSITION)) continue;
@@ -503,6 +534,10 @@ void load_textures() {
     load_texture(0, "img/human.png");
     load_texture(1, "img/sword.png");
     load_texture(2, "img/orc.png");
+    load_texture(3, "img/tiles/grass-00.png");
+    load_texture(4, "img/tiles/grass-01.png");
+    load_texture(5, "img/tiles/grass-02.png");
+    load_texture(6, "img/tiles/grass-03.png");
 }
 
 void unload_textures() {
@@ -540,7 +575,8 @@ void update_state() {
     if (current_scene != SCENE_GAMEPLAY) return;
 
     // every N frames, create_orc
-    int spawn_freq = 120;
+    int spawn_freq = 30;
+    //int spawn_freq = 120;
     if (frame_count % spawn_freq == 0) {
         create_orc();
     }
@@ -580,6 +616,7 @@ void update_state() {
         if (get_type(row.first) == ENTITY_ORC && CheckCollisionRecs(hb, get_hitbox(row.first))) {
             hero_collision_counter++;
             set_destroy(row.first, true);
+            PlaySound(sfx[SFX_GET_HIT]);
         }
     }
 
@@ -590,6 +627,7 @@ void update_state() {
                 sword_collision_counter++;
                 set_destroy(row.first, true);
                 player_attacking = false;
+                PlaySound(sfx[SFX_HIT]);
             }
         }
     }
@@ -604,8 +642,24 @@ void update_state() {
     entities_destroyed += cleanup.size();
 }
 
+void init_sound() {
+    InitAudioDevice();
+
+    vector<string> paths = {"020_Confirm_10", "03_Hit_Wet", "62_Get_hit_01", "061_Equip_01"};
+
+    for (int i = 0; i < paths.size(); i++) {
+        // prepend root sfx dir "sfx/"
+        sfx[i] = LoadSound(TextFormat("sfx/%s.wav", paths[i].c_str()));
+        if (sfx[i].stream.buffer == NULL) {
+            fprintf(stderr, "Failed to load sound: %s\n", paths[i].c_str());
+            exit(EXIT_FAILURE);
+        }
+    }
+}
+
 int main() {
     init_gfx();
+    init_sound();
     init_data();
     while (!WindowShouldClose()) {
         handle_input();
@@ -614,6 +668,7 @@ int main() {
     }
     unload_textures();
     UnloadRenderTexture(target_texture);
+    CloseAudioDevice();
     CloseWindow();
     return 0;
 }
