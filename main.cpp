@@ -486,20 +486,19 @@ void draw_gameplay() {
             Rectangle dst = {pos.x, pos.y, 7, 7};
             Rectangle hb = get_hitbox(id);
             DrawTexturePro(txinfo[TX_HERO], src, dst, origin, 0.0f, WHITE);
-            //DrawRectangleLinesEx(dst, 1.0f, RED);
-            DrawRectangleLinesEx(hb, 1.0f, (Color){0xFF, 0, 0, 127});
+            //DrawRectangleLinesEx(hb, 1.0f, (Color){0xFF, 0, 0, 127});
         } else if (type == ENTITY_SWORD) {
             Rectangle src = {0, 0, 8, 5};
             Rectangle hb = get_hitbox(id);
             Rectangle dst = {pos.x, pos.y, 8, 5};
             DrawTexturePro(txinfo[TX_SWORD], src, dst, origin, 0.0f, WHITE);
-            DrawRectangleLinesEx(hb, 1.0f, (Color){0xFF, 0, 0, 127});
+            //DrawRectangleLinesEx(hb, 1.0f, (Color){0xFF, 0, 0, 127});
         } else if (type == ENTITY_ORC) {
             Rectangle src = {0, 0, -7, 7};
             Rectangle dst = {pos.x, pos.y, 7, 7};
             Rectangle hb = get_hitbox(id);
             DrawTexturePro(txinfo[TX_ORC], src, dst, origin, 0.0f, WHITE);
-            DrawRectangleLinesEx(hb, 1.0f, (Color){0xFF, 0, 0, 127});
+            //DrawRectangleLinesEx(hb, 1.0f, (Color){0xFF, 0, 0, 127});
         }
     }
     EndMode2D();
@@ -575,7 +574,7 @@ void update_state() {
     if (current_scene != SCENE_GAMEPLAY) return;
 
     // every N frames, create_orc
-    int spawn_freq = 30;
+    int spawn_freq = 60;
     //int spawn_freq = 120;
     if (frame_count % spawn_freq == 0) {
         create_orc();
@@ -604,6 +603,11 @@ void update_state() {
             set_pos(row.first, p);
             hb.x += v.x, hb.y += v.y;
             set_hitbox(row.first, hb);
+
+            // if the p.x is < 0, mark for destroy
+            if (p.x <= 0) {
+                set_destroy(row.first, true);
+            }
         }
     }
 
