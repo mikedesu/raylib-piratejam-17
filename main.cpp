@@ -43,6 +43,7 @@ const Vector2 origin = {0, 0};
 Camera2D cam2d;
 int frame_count = 0;
 Texture2D txinfo[32];
+bool gameover = false;
 
 Sound sfx[32];
 
@@ -335,12 +336,17 @@ bool create_orc() {
     // Select a random x,yf appropriate to the scene
     Vector2 p = get_pos(hero_id);
     p.x += 160;
+
+    p.y += GetRandomValue(-1, 1) * 8.0f;
+
+
     set_pos(id, p);
     Rectangle hitbox = {p.x, p.y, w, h};
     set_hitbox(id, hitbox);
 
-
-    set_velocity(id, (Vector2){-0.25f * GetRandomValue(1, 4), 0});
+    // Set a random velocity to the orc
+    float base_speed = -0.1f;
+    set_velocity(id, (Vector2){base_speed * GetRandomValue(1, 4), 0});
 
     set_collides(id, true);
     set_destroy(id, false);
@@ -390,6 +396,15 @@ void handle_input_title() {
     if (IsKeyPressed(KEY_ENTER)) {
         current_scene = SCENE_GAMEPLAY;
         debug_txt_color = WHITE;
+        gameover = false;
+        PlaySound(sfx[SFX_CONFIRM]);
+    }
+}
+
+void handle_input_gameover() {
+    if (IsKeyPressed(KEY_ENTER)) {
+        current_scene = SCENE_TITLE;
+        debug_txt_color = BLACK;
         PlaySound(sfx[SFX_CONFIRM]);
     }
 }
@@ -401,6 +416,8 @@ void handle_input() {
         handle_input_title();
     else if (current_scene == SCENE_GAMEPLAY)
         handle_input_gameplay();
+    else if (current_scene == SCENE_GAMEOVER)
+        handle_input_gameover();
 }
 
 void draw_debug_panel() {
@@ -447,6 +464,17 @@ void draw_title() {
     int x = target_w / 2 - m / 2;
     int y = target_h / 2 - s;
     DrawText(text, x, y, s, BLACK);
+}
+
+void draw_gameover() {
+    ClearBackground(BLACK);
+    int s = 20;
+    const char* text = "gameover";
+    int m = MeasureText(text, s);
+    int x = target_w / 2 - m / 2;
+    int y = target_h / 2 - s;
+    Color c = {0xFF, 0, 0, 255};
+    DrawText(text, x, y, s, c);
 }
 
 void draw_gameplay() {
@@ -520,6 +548,8 @@ void draw_frame() {
         draw_title();
     else if (current_scene == SCENE_GAMEPLAY)
         draw_gameplay();
+    else if (current_scene == SCENE_GAMEOVER)
+        draw_gameover();
     EndTextureMode();
     ClearBackground(BLACK);
     DrawTexturePro(target_texture.texture, target_src, window_dst, origin, 0.0f, WHITE);
@@ -607,9 +637,15 @@ void update_state() {
             hb.x += v.x, hb.y += v.y;
             set_hitbox(row.first, hb);
 
-            // if the p.x is < 0, mark for destroy
-            if (p.x <= 0) {
+            // if the p.x is < 0, mark for destroy. also this might be gameover if an enemy hits the left
+            if (p.x <= 42) {
                 set_destroy(row.first, true);
+                gameover = true;
+                current_scene = SCENE_GAMEOVER;
+
+                //cleanup entities
+
+                return;
             }
         }
     }
