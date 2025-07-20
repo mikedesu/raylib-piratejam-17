@@ -17,6 +17,10 @@ using std::string;
 using std::unordered_map;
 using std::vector;
 
+bool create_player();
+bool create_orc();
+bool create_sword();
+
 typedef int entityid;
 typedef int textureid;
 typedef enum { C_NAME, C_TYPE, C_POSITION, C_HITBOX, C_VELOCITY, C_COLLIDES, C_DESTROY, C_COUNT } component;
@@ -121,6 +125,36 @@ string game_scene2str(game_scene s) {
     default:
         return "UNKNOWN_SCENE";
     }
+}
+
+void init_data() {
+    if (!create_player() || !create_sword()) {
+        fprintf(stderr, "Failed to create player or sword entity\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+// clean up data structures on gameover in prep for next game
+void cleanup_data() {
+    // clear all component tables
+    component_table.clear();
+    names.clear();
+    types.clear();
+    positions.clear();
+    hitboxes.clear();
+    velocities.clear();
+    collides.clear();
+    destroy.clear();
+
+    // reset entity ids
+    next_entityid = 0;
+    hero_id = ENTITYID_INVALID;
+    sword_id = ENTITYID_INVALID;
+    player_attacking = false;
+
+    // reset counters
+    hero_collision_counter = 0;
+    sword_collision_counter = 0;
 }
 
 bool entity_exists(entityid id) {
@@ -398,6 +432,8 @@ void handle_input_title() {
         debug_txt_color = WHITE;
         gameover = false;
         PlaySound(sfx[SFX_CONFIRM]);
+        init_data(); // reset data for new game
+        //cleanup_data(); // reset data for new game
     }
 }
 
@@ -406,6 +442,7 @@ void handle_input_gameover() {
         current_scene = SCENE_TITLE;
         debug_txt_color = BLACK;
         PlaySound(sfx[SFX_CONFIRM]);
+        cleanup_data(); // reset data for new game
     }
 }
 
@@ -596,12 +633,6 @@ void init_gfx() {
     load_textures();
 }
 
-void init_data() {
-    if (!create_player() || !create_sword()) {
-        fprintf(stderr, "Failed to create player or sword entity\n");
-        exit(EXIT_FAILURE);
-    }
-}
 
 void update_state() {
     if (current_scene != SCENE_GAMEPLAY) return;
@@ -700,10 +731,11 @@ void init_sound() {
     }
 }
 
+
 int main() {
     init_gfx();
     init_sound();
-    init_data();
+    //init_data();
     while (!WindowShouldClose()) {
         handle_input();
         update_state();
