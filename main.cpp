@@ -338,7 +338,10 @@ bool create_orc() {
     set_pos(id, p);
     Rectangle hitbox = {p.x, p.y, w, h};
     set_hitbox(id, hitbox);
-    set_velocity(id, (Vector2){-0.5, 0});
+
+
+    set_velocity(id, (Vector2){-0.25f * GetRandomValue(1, 4), 0});
+
     set_collides(id, true);
     set_destroy(id, false);
     return true;
