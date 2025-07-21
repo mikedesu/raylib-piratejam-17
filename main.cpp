@@ -37,6 +37,7 @@ using std::vector;
 
 typedef int entityid;
 typedef int textureid;
+
 typedef enum {
     C_NAME,
     C_TYPE,
@@ -49,7 +50,17 @@ typedef enum {
     C_HP,
     C_COUNT
 } component;
-typedef enum { ENTITY_NONE, ENTITY_HERO, ENTITY_SWORD, ENTITY_ORC, ENTITY_COIN, ENTITY_COUNT } entity_type;
+
+typedef enum {
+    ENTITY_NONE,
+    ENTITY_HERO,
+    ENTITY_SWORD,
+    ENTITY_ORC,
+    ENTITY_COIN,
+    ENTITY_DWARF_MERCHANT,
+    ENTITY_COUNT
+} entity_type;
+
 typedef enum { SCENE_COMPANY, SCENE_TITLE, SCENE_GAMEPLAY, SCENE_GAMEOVER, SCENE_COUNT } game_scene;
 
 bool create_player();
@@ -80,6 +91,9 @@ float base_orc_speed = -0.25f;
 float current_orc_speed = -0.25f;
 int random_orc_speed_mod_max = 2;
 
+int player_level = 1;
+bool levelup_flag = false;
+int base_coin_level_up_amount = 10;
 
 Texture2D txinfo[NUM_TEXTURES];
 bool gameover = false;
@@ -137,6 +151,7 @@ void cleanup_data() {
     entities_destroyed = 0;
     coins_collected = 0;
     hero_total_damage_received = 0;
+    player_level = 0;
 }
 
 bool entity_exists(entityid id) {
@@ -391,12 +406,12 @@ bool create_orc() {
     // 1. add h
     // 2. sub h
     // 3. do nothing
-    int random_y = GetRandomValue(-1, 1);
-    if (random_y == -1) {
-        p.y -= h;
-    } else if (random_y == 1) {
-        p.y += h;
-    }
+    int random_y = 0;
+    //if (player_level == 1)
+    random_y = GetRandomValue(-1, 1);
+    //else
+    //    random_y = GetRandomValue(-2, 2);
+    p.y += random_y * h;
 
     set_pos(id, p);
     Rectangle hitbox = {p.x, p.y, w, h};
@@ -528,6 +543,9 @@ void draw_debug_panel() {
 
     Vector2 myhp = get_hp(hero_id);
     DrawText(TextFormat("HP: %0.1f/%0.1f", myhp.x, myhp.y, coins_collected), x, y, s, c);
+    y += s;
+    DrawText(TextFormat("Level: %d", player_level), x, y, s, c);
+    y += s;
 }
 
 void draw_company() {
@@ -845,6 +863,19 @@ void update_state_hero_hp() {
     }
 }
 
+void update_level_up() {
+    if (coins_collected >= base_coin_level_up_amount * player_level) {
+        levelup_flag = true;
+    }
+
+    if (levelup_flag) {
+        player_level++;
+        levelup_flag = false;
+        //spawn_freq = 120 - player_level * 10; // increase spawn frequency
+        //current_orc_speed = base_orc_speed - player_level * 0.05f; // increase orc speed
+    }
+}
+
 void update_state() {
     if (current_scene != SCENE_GAMEPLAY) return;
     // every N frames, create_orc
@@ -859,6 +890,7 @@ void update_state() {
     update_state_sword_collision();
     // perform entity cleanup based on the values in the 'destroy' table
     update_state_destroy();
+    update_level_up();
 }
 
 void load_soundfile(int index, const char* path) {
