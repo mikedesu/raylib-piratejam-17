@@ -19,7 +19,9 @@
 #define TX_GRASS_03 6
 #define TX_COIN 7
 #define TX_SWORD_UP 8
-#define TX_COUNT 9
+#define TX_WILD_ORC 9
+#define TX_DWARF_MERCHANT 10
+#define TX_COUNT 11
 
 #define SFX_CONFIRM 0
 #define SFX_HIT 1
@@ -73,6 +75,10 @@ Rectangle window_dst;
 const Vector2 origin = {0, 0};
 Camera2D cam2d;
 int frame_count = 0;
+int spawn_freq = 120;
+float base_orc_speed = -0.25f;
+float current_orc_speed = -0.25f;
+int random_orc_speed_mod_max = 2;
 
 
 Texture2D txinfo[NUM_TEXTURES];
@@ -348,7 +354,8 @@ bool create_player() {
     set_hitbox(id, hitbox);
     set_collides(id, true);
     set_destroy(id, false);
-
+    Vector2 velocity = {0.25f, 0.25f};
+    set_velocity(id, velocity);
     set_hp(id, (Vector2){3.0f, 3.0f});
     hero_id = id;
     return true;
@@ -395,9 +402,8 @@ bool create_orc() {
     Rectangle hitbox = {p.x, p.y, w, h};
     set_hitbox(id, hitbox);
     // Set a random velocity to the orc
-    float base_speed = -0.25f;
-    int random_max = 3;
-    set_velocity(id, (Vector2){base_speed * GetRandomValue(1, random_max), 0});
+    set_velocity(id, (Vector2){current_orc_speed * GetRandomValue(1, random_orc_speed_mod_max), 0});
+
     set_collides(id, true);
     set_destroy(id, false);
     set_hp(id, (Vector2){1.0f, 1.0f});
@@ -425,24 +431,27 @@ bool create_coin(entityid id) {
 }
 
 void handle_input_gameplay() {
-    float v = 0.5f;
+    Vector2 velocity = get_velocity(hero_id);
+    float vx = velocity.x; // use the x component for movement speed
+    float vy = velocity.y; // use the y component for movement speed
+
     if (IsKeyDown(KEY_LEFT)) {
-        update_x_pos(hero_id, -v);
-        update_hitbox_x(hero_id, -v);
+        update_x_pos(hero_id, -vx);
+        update_hitbox_x(hero_id, -vx);
         player_dir = -1;
     }
     if (IsKeyDown(KEY_RIGHT)) {
-        update_x_pos(hero_id, v);
-        update_hitbox_x(hero_id, v);
+        update_x_pos(hero_id, vx);
+        update_hitbox_x(hero_id, vx);
         player_dir = 1;
     }
     if (IsKeyDown(KEY_UP)) {
-        update_y_pos(hero_id, -v);
-        update_hitbox_y(hero_id, -v);
+        update_y_pos(hero_id, -vy);
+        update_hitbox_y(hero_id, -vy);
     }
     if (IsKeyDown(KEY_DOWN)) {
-        update_y_pos(hero_id, v);
-        update_hitbox_y(hero_id, v);
+        update_y_pos(hero_id, vy);
+        update_hitbox_y(hero_id, vy);
     }
     if (IsKeyPressed(KEY_A)) {
         player_attacking = true;
@@ -533,24 +542,26 @@ void draw_company() {
 }
 
 void draw_title() {
-    ClearBackground(WHITE);
-    int s = 30;
+    Color bg = WHITE;
+    ClearBackground(bg);
+    int s = 50;
     const char* text = "There can be...";
     int m = MeasureText(text, s);
     int x = target_w / 2 - m / 2;
     int y = target_h / 2 - s;
-    DrawText(text, x, y, s, BLACK);
-
     // lets try drawing TX_SWORD_UP directly beneath...
     Rectangle src = {0, 0, 5, 8};
     float scale = 16.0f;
     float w = src.width * scale;
     float h = src.height * scale;
     float x0 = target_w / 2.0f - w / 2;
-    float y0 = target_h / 2.0f + s + 10;
-    //Rectangle dst = {(float)target_w / 2 - 4, (float)target_h / 2 + s, 5 * scale, 8 * scale};
+    //float y0 = target_h / 2.0f + s + 10;
+    // lets make y0 such that the sword is dead-center on top of the text
+    float y0 = target_h / 2.0f + s / 2.0f - h / 2 + 2 * scale;
     Rectangle dst = {x0, y0, w, h};
     DrawTexturePro(txinfo[TX_SWORD_UP], src, dst, origin, 0.0f, WHITE);
+    Color fg = BLACK;
+    DrawText(text, x, y, s, fg);
 }
 
 void draw_gameover() {
@@ -643,31 +654,57 @@ void draw_frame() {
 }
 
 void load_texture(int index, const char* path) {
-    txinfo[index] = LoadTexture(path);
+    // create a buffer, and TextFormat it so "img/" is prepended
+    if (index < 0 || index >= NUM_TEXTURES) {
+        fprintf(stderr, "Invalid texture index: %d\n", index);
+        exit(EXIT_FAILURE);
+    }
+    if (txinfo[index].id != 0) {
+        fprintf(stderr, "Texture %d already loaded\n", index);
+        return; // Texture already loaded
+    }
+    const char* full_path = TextFormat("img/%s", path);
+    // txinfo[index] = LoadTexture(path);
+    txinfo[index] = LoadTexture(full_path);
+    if (txinfo[index].id == 0) {
+        fprintf(stderr, "Failed to load texture: %s\n", full_path);
+        exit(EXIT_FAILURE);
+    }
+    // Set texture filter to point for pixel art
+    SetTextureFilter(txinfo[index], TEXTURE_FILTER_POINT);
 }
 
 void load_textures() {
-    load_texture(TX_HERO, "img/human.png");
-    load_texture(TX_SWORD, "img/sword.png");
-    load_texture(TX_ORC, "img/orc.png");
-    load_texture(TX_GRASS_00, "img/tiles/grass-00.png");
-    load_texture(TX_GRASS_01, "img/tiles/grass-01.png");
-    load_texture(TX_GRASS_02, "img/tiles/grass-02.png");
-    load_texture(TX_GRASS_03, "img/tiles/grass-03.png");
-    load_texture(TX_COIN, "img/coin.png");
-    load_texture(TX_SWORD_UP, "img/sword-up.png");
+    load_texture(TX_HERO, "human.png");
+    load_texture(TX_SWORD, "sword.png");
+    load_texture(TX_ORC, "orc.png");
+    load_texture(TX_GRASS_00, "tiles/grass-00.png");
+    load_texture(TX_GRASS_01, "tiles/grass-01.png");
+    load_texture(TX_GRASS_02, "tiles/grass-02.png");
+    load_texture(TX_GRASS_03, "tiles/grass-03.png");
+    load_texture(TX_COIN, "coin.png");
+    load_texture(TX_SWORD_UP, "sword-up.png");
+    load_texture(TX_WILD_ORC, "wild-orc.png");
+    load_texture(TX_DWARF_MERCHANT, "dwarf-merchant.png");
 }
 
 void unload_textures() {
-    UnloadTexture(txinfo[TX_HERO]);
-    UnloadTexture(txinfo[TX_SWORD]);
-    UnloadTexture(txinfo[TX_ORC]);
-    UnloadTexture(txinfo[TX_GRASS_00]);
-    UnloadTexture(txinfo[TX_GRASS_01]);
-    UnloadTexture(txinfo[TX_GRASS_02]);
-    UnloadTexture(txinfo[TX_GRASS_03]);
-    UnloadTexture(txinfo[TX_COIN]);
-    UnloadTexture(txinfo[TX_SWORD_UP]);
+    //UnloadTexture(txinfo[TX_HERO]);
+    //UnloadTexture(txinfo[TX_SWORD]);
+    //UnloadTexture(txinfo[TX_ORC]);
+    //UnloadTexture(txinfo[TX_GRASS_00]);
+    //UnloadTexture(txinfo[TX_GRASS_01]);
+    //UnloadTexture(txinfo[TX_GRASS_02]);
+    //UnloadTexture(txinfo[TX_GRASS_03]);
+    //UnloadTexture(txinfo[TX_COIN]);
+    //UnloadTexture(txinfo[TX_SWORD_UP]);
+    //UnloadTexture(txinfo[TX_WILD_ORC]);
+    //UnloadTexture(txinfo[TX_DWARF_MERCHANT]);
+
+
+    for (int i = TX_HERO; i < TX_COUNT; i++) {
+        UnloadTexture(txinfo[i]);
+    }
 }
 
 void init_gfx() {
@@ -707,6 +744,8 @@ void update_state_player_attack() {
 void update_state_velocity() {
     // velocity-position update
     for (auto row : component_table) {
+        // skip the hero
+        if (row.first == hero_id) continue;
         if (has_comp(row.first, C_VELOCITY)) {
             Vector2 p = get_pos(row.first), v = get_velocity(row.first);
             Rectangle hb = get_hitbox(row.first);
@@ -809,7 +848,6 @@ void update_state_hero_hp() {
 void update_state() {
     if (current_scene != SCENE_GAMEPLAY) return;
     // every N frames, create_orc
-    int spawn_freq = 60;
     if (frame_count % spawn_freq == 0) {
         create_orc();
     }
