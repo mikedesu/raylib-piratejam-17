@@ -11,22 +11,35 @@
 #define SFX_HIT 1
 #define SFX_GET_HIT 2
 #define SFX_EQUIP 3
+#define SFX_COIN 4
 
 using std::map;
 using std::string;
 using std::unordered_map;
 using std::vector;
 
+typedef int entityid;
+typedef int textureid;
+typedef enum { C_NAME, C_TYPE, C_POSITION, C_HITBOX, C_VELOCITY, C_COLLIDES, C_DESTROY, C_SRC, C_COUNT } component;
+typedef enum { ENTITY_NONE, ENTITY_HERO, ENTITY_SWORD, ENTITY_ORC, ENTITY_COIN, ENTITY_COUNT } entity_type;
+typedef enum { SCENE_COMPANY, SCENE_TITLE, SCENE_GAMEPLAY, SCENE_GAMEOVER, SCENE_COUNT } game_scene;
+typedef enum {
+    TX_HERO,
+    TX_SWORD,
+    TX_ORC,
+    TX_GRASS_00,
+    TX_GRASS_01,
+    TX_GRASS_02,
+    TX_GRASS_03,
+    TX_COIN,
+    TX_COUNT
+} tx_index;
+
+
 bool create_player();
 bool create_orc();
 bool create_sword();
-
-typedef int entityid;
-typedef int textureid;
-typedef enum { C_NAME, C_TYPE, C_POSITION, C_HITBOX, C_VELOCITY, C_COLLIDES, C_DESTROY, C_COUNT } component;
-typedef enum { ENTITY_NONE, ENTITY_HERO, ENTITY_SWORD, ENTITY_ORC, ENTITY_COUNT } entity_type;
-typedef enum { SCENE_COMPANY, SCENE_TITLE, SCENE_GAMEPLAY, SCENE_GAMEOVER, SCENE_COUNT } game_scene;
-typedef enum { TX_HERO, TX_SWORD, TX_ORC, TX_GRASS_00, TX_GRASS_01, TX_GRASS_02, TX_GRASS_03, TX_COUNT } tx_index;
+bool create_coin(entityid id);
 
 const char* game_window_title = "evildojo666 presents: There can be...";
 int window_w = 1920;
@@ -48,14 +61,9 @@ Camera2D cam2d;
 int frame_count = 0;
 Texture2D txinfo[32];
 bool gameover = false;
-
+int player_dir = 1;
 Sound sfx[32];
-
-//unordered_map<entityid, bool> entities;
-
-
 vector<entityid> cleanup;
-//unordered_map<entityid, long> component_table;
 map<entityid, long> component_table;
 unordered_map<entityid, string> names;
 unordered_map<entityid, entity_type> types;
@@ -64,68 +72,16 @@ unordered_map<entityid, Rectangle> hitboxes;
 unordered_map<entityid, Vector2> velocities;
 unordered_map<entityid, bool> collides;
 unordered_map<entityid, bool> destroy;
+unordered_map<entityid, Rectangle> sources;
 entityid next_entityid = 0;
 const entityid ENTITYID_INVALID = -1;
 entityid hero_id = ENTITYID_INVALID;
 entityid sword_id = ENTITYID_INVALID;
 bool player_attacking = false;
-
 int hero_collision_counter = 0;
 int sword_collision_counter = 0;
 int entities_destroyed = 0;
-
-string comp2str(component c) {
-    switch (c) {
-    case C_NAME:
-        return "NAME";
-    case C_TYPE:
-        return "TYPE";
-    case C_POSITION:
-        return "POSITION";
-    case C_HITBOX:
-        return "HITBOX";
-    case C_VELOCITY:
-        return "VELOCITY";
-    case C_COLLIDES:
-        return "COLLIDES";
-    case C_DESTROY:
-        return "DESTROY";
-    case C_COUNT:
-        return "COUNT";
-    default:
-        return "UNKNOWN_COMPONENT";
-    }
-}
-
-string entity_type2str(entity_type t) {
-    switch (t) {
-    case ENTITY_NONE:
-        return "NONE";
-    case ENTITY_HERO:
-        return "HERO";
-    case ENTITY_SWORD:
-        return "SWORD";
-    case ENTITY_ORC:
-        return "ORC";
-    default:
-        return "UNKNOWN_TYPE";
-    }
-}
-
-string game_scene2str(game_scene s) {
-    switch (s) {
-    case SCENE_COMPANY:
-        return "COMPANY";
-    case SCENE_TITLE:
-        return "TITLE";
-    case SCENE_GAMEPLAY:
-        return "GAMEPLAY";
-    case SCENE_GAMEOVER:
-        return "GAMEOVER";
-    default:
-        return "UNKNOWN_SCENE";
-    }
-}
+int coins_collected = 0;
 
 void init_data() {
     if (!create_player() || !create_sword()) {
@@ -134,7 +90,6 @@ void init_data() {
     }
 }
 
-// clean up data structures on gameover in prep for next game
 void cleanup_data() {
     // clear all component tables
     component_table.clear();
@@ -145,17 +100,17 @@ void cleanup_data() {
     velocities.clear();
     collides.clear();
     destroy.clear();
-
+    sources.clear();
     // reset entity ids
     next_entityid = 0;
     hero_id = ENTITYID_INVALID;
     sword_id = ENTITYID_INVALID;
     player_attacking = false;
-
     // reset counters
     hero_collision_counter = 0;
     sword_collision_counter = 0;
     entities_destroyed = 0;
+    coins_collected = 0;
 }
 
 bool entity_exists(entityid id) {
@@ -166,7 +121,6 @@ entityid add_entity() {
     entityid id = next_entityid;
     if (entity_exists(id)) return ENTITYID_INVALID;
     component_table[id] = 0;
-    //entities[id] = true;
     next_entityid++;
     return id;
 }
@@ -271,6 +225,20 @@ Rectangle get_hitbox(entityid id) {
     return (Rectangle){-1, -1, -1, -1};
 }
 
+bool set_src(entityid id, Rectangle src) {
+    if (!entity_exists(id)) return false;
+    set_comp(id, C_SRC);
+    sources[id] = src;
+    return true;
+}
+
+Rectangle get_src(entityid id) {
+    if (!has_comp(id, C_SRC)) return (Rectangle){-1, -1, -1, -1};
+    auto it = sources.find(id);
+    if (it != sources.end()) return it->second;
+    return (Rectangle){-1, -1, -1, -1}; // Return invalid rectangle if not found
+}
+
 bool update_hitbox_x(entityid id, float incr) {
     Rectangle hitbox = get_hitbox(id);
     if (hitbox.x < 0 || hitbox.y < 0) return false; // Invalid hitbox
@@ -334,6 +302,8 @@ bool create_player() {
     if (id == ENTITYID_INVALID) return false;
     set_name(id, "hero");
     set_type(id, ENTITY_HERO);
+    Rectangle src = {0, 0, 7, 7};
+    set_src(id, src);
     float w = txinfo[0].width * 1.0f;
     float h = txinfo[0].height * 1.0f;
     float x = target_w / 16.0 + w;
@@ -353,6 +323,8 @@ bool create_sword() {
     if (id == ENTITYID_INVALID) return false;
     set_name(id, "sword");
     set_type(id, ENTITY_SWORD);
+    Rectangle src = {0, 0, 8, 5};
+    set_src(id, src);
     set_pos(id, (Vector2){-1, -1});
     set_hitbox(id, (Rectangle){-1, -1, -1, -1});
     set_collides(id, true);
@@ -366,57 +338,63 @@ bool create_orc() {
     if (id == ENTITYID_INVALID) return false;
     set_name(id, "orc");
     set_type(id, ENTITY_ORC);
+    Rectangle src = {0, 0, -7, 7};
+    set_src(id, src);
     float w = txinfo[0].width * 1.0f;
     float h = txinfo[0].height * 1.0f;
     // Select a random x,yf appropriate to the scene
     Vector2 p = get_pos(hero_id);
-    //Vector2 p = {200, 0};
     p.x = 200;
-    p.y = 57; //+ GetRandomValue(-1, 4) * 8.0f;
-
-
+    p.y = 57;
     set_pos(id, p);
     Rectangle hitbox = {p.x, p.y, w, h};
     set_hitbox(id, hitbox);
-
     // Set a random velocity to the orc
-    float base_speed = -0.1f;
-    set_velocity(id, (Vector2){base_speed * GetRandomValue(1, 4), 0});
-
+    float base_speed = -0.25f;
+    int random_max = 3;
+    set_velocity(id, (Vector2){base_speed * GetRandomValue(1, random_max), 0});
     set_collides(id, true);
     set_destroy(id, false);
     return true;
 }
 
+bool create_coin(entityid id) {
+    // spawm a coin at the location of id
+    if (!entity_exists(id)) return false;
+    entityid coin_id = add_entity();
+    if (coin_id == ENTITYID_INVALID) return false;
+    set_name(coin_id, "coin");
+    set_type(coin_id, ENTITY_COIN);
+    Vector2 pos = get_pos(id);
+    set_pos(coin_id, pos);
+    Rectangle src = {0, 0, 4, 6};
+    set_src(coin_id, src);
+    Rectangle hitbox = {pos.x, pos.y, 4, 6};
+    set_hitbox(coin_id, hitbox);
+    set_collides(coin_id, true);
+    set_destroy(coin_id, false);
+    set_velocity(coin_id, (Vector2){-0.1f, 0});
+    set_pos(coin_id, pos);
+    return true;
+}
+
 void handle_input_gameplay() {
-    if (IsKeyDown(KEY_DOWN)) {
-        update_y_pos(hero_id, 0.5);
-        update_hitbox_y(hero_id, 0.5);
-    }
-    if (IsKeyDown(KEY_UP)) {
-        update_y_pos(hero_id, -0.5);
-        update_hitbox_y(hero_id, -0.5);
-    }
     if (IsKeyDown(KEY_LEFT)) {
         update_x_pos(hero_id, -0.5);
         update_hitbox_x(hero_id, -0.5);
+        player_dir = -1;
     }
     if (IsKeyDown(KEY_RIGHT)) {
         update_x_pos(hero_id, 0.5);
         update_hitbox_x(hero_id, 0.5);
+        player_dir = 1;
     }
-    //if (IsKeyDown(KEY_SPACE)) {
-    //if (IsKeyPressed(KEY_SPACE)) {
     if (IsKeyPressed(KEY_A)) {
         player_attacking = true;
-
         PlaySound(sfx[SFX_EQUIP]);
     } else if (IsKeyUp(KEY_A)) {
         player_attacking = false;
     }
-    //if (IsKeyPressed(KEY_C)) {
-    //    create_orc();
-    //}
 }
 
 void handle_input_company() {
@@ -434,7 +412,6 @@ void handle_input_title() {
         gameover = false;
         PlaySound(sfx[SFX_CONFIRM]);
         init_data(); // reset data for new game
-        //cleanup_data(); // reset data for new game
     }
 }
 
@@ -461,6 +438,7 @@ void handle_input() {
 void draw_debug_panel() {
     int x = 10, y = 10, s = 20;
     Color c = debug_txt_color;
+    Vector2 p = get_pos(hero_id);
     DrawText(TextFormat("Frame %d", frame_count), x, y, s, c);
     y += s;
     DrawText(TextFormat("FPS: %d", GetFPS()), x, y, s, c);
@@ -471,7 +449,6 @@ void draw_debug_panel() {
     y += s;
     DrawText(TextFormat("Zoom: %.1f", cam2d.zoom), x, y, s, c);
     y += s;
-    Vector2 p = get_pos(hero_id);
     DrawText(TextFormat("Hero.pos: %.1f,%.1f", p.x, p.y), x, y, s, c);
     y += s;
     DrawText(TextFormat("Hero Collisions: %d", hero_collision_counter), x, y, s, c);
@@ -481,6 +458,8 @@ void draw_debug_panel() {
     DrawText(TextFormat("Entities created: %d", next_entityid), x, y, s, c);
     y += s;
     DrawText(TextFormat("Entities destroyed: %d", entities_destroyed), x, y, s, c);
+    y += s;
+    DrawText(TextFormat("Coins: %d", coins_collected), x, y, s, c);
 }
 
 void draw_company() {
@@ -518,18 +497,14 @@ void draw_gameover() {
 void draw_gameplay() {
     BeginMode2D(cam2d);
     ClearBackground(BLACK);
-
     Color c = BLUE;
-
     float x = target_w / 16.0f;
     float y = target_h / 16.0f;
     float w = target_w / 8.0f;
     float h = target_h / 8.0f;
     DrawRectangle(x, y, w, h, c);
-
     Rectangle src = {0, 0, 8, 8};
     y += 32;
-
     for (int j = 0; j < 4; j++) {
         Rectangle dst = {x, y, 8, 8};
         for (int i = 0; i < 13; i++) {
@@ -538,36 +513,37 @@ void draw_gameplay() {
         }
         y += 8;
     }
-
     for (auto it : component_table) {
         entityid id = it.first;
         if (!has_comp(id, C_POSITION)) continue;
-        //if (has_comp(id, C_DESTROY) && get_destroy(id)) {
-        //    entities_destroyed++;
-        //    remove_entity(id);
-        //    continue;
-        //}
         Vector2 pos = get_pos(id);
         if (pos.x < 0 || pos.y < 0) continue;
         entity_type type = get_type(id);
         if (type == ENTITY_HERO) {
-            Rectangle src = {0, 0, 7, 7};
-            Rectangle dst = {pos.x, pos.y, 7, 7};
-            Rectangle hb = get_hitbox(id);
+            //Rectangle src = {0, 0, player_dir * 7.0f, 7};
+            Rectangle src = get_src(id);
+            Rectangle dst = {pos.x, pos.y, src.width, src.height};
+            //Rectangle hb = get_hitbox(id);
             DrawTexturePro(txinfo[TX_HERO], src, dst, origin, 0.0f, WHITE);
             //DrawRectangleLinesEx(hb, 1.0f, (Color){0xFF, 0, 0, 127});
         } else if (type == ENTITY_SWORD) {
-            Rectangle src = {0, 0, 8, 5};
-            Rectangle hb = get_hitbox(id);
-            Rectangle dst = {pos.x, pos.y, 8, 5};
+            Rectangle src = get_src(id);
+            Rectangle dst = {pos.x, pos.y, src.width, src.height};
+            //Rectangle hb = get_hitbox(id);
             DrawTexturePro(txinfo[TX_SWORD], src, dst, origin, 0.0f, WHITE);
             //DrawRectangleLinesEx(hb, 1.0f, (Color){0xFF, 0, 0, 127});
         } else if (type == ENTITY_ORC) {
-            Rectangle src = {0, 0, -7, 7};
-            Rectangle dst = {pos.x, pos.y, 7, 7};
-            Rectangle hb = get_hitbox(id);
+            Rectangle src = get_src(id);
+            Rectangle dst = {pos.x, pos.y, src.width, src.height};
+            //Rectangle hb = get_hitbox(id);
             DrawTexturePro(txinfo[TX_ORC], src, dst, origin, 0.0f, WHITE);
             //DrawRectangleLinesEx(hb, 1.0f, (Color){0xFF, 0, 0, 127});
+        } else if (type == ENTITY_COIN) {
+            //Rectangle src = {0, 0, -4, 6};
+            Rectangle src = get_src(id);
+            Rectangle dst = {pos.x, pos.y, src.width, src.height};
+            //Rectangle hb = get_hitbox(id);
+            DrawTexturePro(txinfo[TX_COIN], src, dst, origin, 0.0f, WHITE);
         }
     }
     EndMode2D();
@@ -608,6 +584,7 @@ void load_textures() {
     load_texture(4, "img/tiles/grass-01.png");
     load_texture(5, "img/tiles/grass-02.png");
     load_texture(6, "img/tiles/grass-03.png");
+    load_texture(7, "img/coin.png");
 }
 
 void unload_textures() {
@@ -634,17 +611,7 @@ void init_gfx() {
     load_textures();
 }
 
-
-void update_state() {
-    if (current_scene != SCENE_GAMEPLAY) return;
-
-    // every N frames, create_orc
-    //int spawn_freq = 30;
-    int spawn_freq = 120;
-    if (frame_count % spawn_freq == 0) {
-        create_orc();
-    }
-
+void update_state_player_attack() {
     if (player_attacking) {
         Vector2 pos = get_pos(hero_id);
         Rectangle hb = get_hitbox(hero_id);
@@ -658,7 +625,9 @@ void update_state() {
         set_pos(sword_id, (Vector2){-1, -1});
         set_hitbox(sword_id, (Rectangle){-1, -1, -1, -1});
     }
+}
 
+void update_state_velocity() {
     // velocity-position update
     for (auto row : component_table) {
         if (has_comp(row.first, C_VELOCITY)) {
@@ -668,34 +637,46 @@ void update_state() {
             set_pos(row.first, p);
             hb.x += v.x, hb.y += v.y;
             set_hitbox(row.first, hb);
-
             // if the p.x is < 0, mark for destroy. also this might be gameover if an enemy hits the left
             if (p.x <= 42) {
                 set_destroy(row.first, true);
-                gameover = true;
-                current_scene = SCENE_GAMEOVER;
-
-                //cleanup entities
-
-                return;
+                // check entity type
+                entity_type t = get_type(row.first);
+                if (t == ENTITY_ORC) {
+                    gameover = true;
+                    current_scene = SCENE_GAMEOVER;
+                    return;
+                }
             }
         }
     }
+}
 
+void update_state_hero_collision() {
     // collision update
-    Rectangle hb = get_hitbox(hero_id), shb = get_hitbox(sword_id);
+    Rectangle hb = get_hitbox(hero_id);
     bool result = false;
-
     // check for collision with hero
     for (auto row : component_table) {
-        if (get_type(row.first) == ENTITY_ORC && CheckCollisionRecs(hb, get_hitbox(row.first))) {
+        entity_type t = get_type(row.first);
+        if (t == ENTITY_ORC && CheckCollisionRecs(hb, get_hitbox(row.first))) {
             hero_collision_counter++;
             set_destroy(row.first, true);
             PlaySound(sfx[SFX_GET_HIT]);
         }
+        if (t == ENTITY_COIN && CheckCollisionRecs(hb, get_hitbox(row.first))) {
+            hero_collision_counter++;
+            set_destroy(row.first, true);
+            // play a sound effect
+            PlaySound(sfx[SFX_COIN]);
+            coins_collected++;
+        }
     }
+}
 
+void update_state_sword_collision() {
     // check for collision with sword
+    Rectangle shb = get_hitbox(sword_id);
     if (player_attacking) {
         for (auto row : component_table) {
             if (get_type(row.first) == ENTITY_ORC && CheckCollisionRecs(shb, get_hitbox(row.first))) {
@@ -703,11 +684,13 @@ void update_state() {
                 set_destroy(row.first, true);
                 player_attacking = false;
                 PlaySound(sfx[SFX_HIT]);
+                create_coin(row.first); // create a coin at the orc's position
             }
         }
     }
+}
 
-    // perform entity cleanup based on the values in the 'destroy' table
+void update_state_destroy() {
     cleanup.clear();
     for (auto row : component_table)
         if (get_destroy(row.first)) cleanup.push_back(row.first);
@@ -717,26 +700,48 @@ void update_state() {
     entities_destroyed += cleanup.size();
 }
 
-void init_sound() {
-    InitAudioDevice();
+void update_state() {
+    if (current_scene != SCENE_GAMEPLAY) return;
+    // every N frames, create_orc
+    int spawn_freq = 60;
+    if (frame_count % spawn_freq == 0) {
+        create_orc();
+    }
+    update_state_player_attack();
+    update_state_velocity();
+    update_state_hero_collision();
+    update_state_sword_collision();
+    // perform entity cleanup based on the values in the 'destroy' table
+    update_state_destroy();
+}
 
-    vector<string> paths = {"020_Confirm_10", "03_Hit_Wet", "62_Get_hit_01", "061_Equip_01"};
-
-    for (int i = 0; i < paths.size(); i++) {
-        // prepend root sfx dir "sfx/"
-        sfx[i] = LoadSound(TextFormat("sfx/%s.wav", paths[i].c_str()));
-        if (sfx[i].stream.buffer == NULL) {
-            fprintf(stderr, "Failed to load sound: %s\n", paths[i].c_str());
-            exit(EXIT_FAILURE);
-        }
+void load_soundfile(int index, const char* path) {
+    sfx[index] = LoadSound(path);
+    if (sfx[index].stream.buffer == NULL) {
+        fprintf(stderr, "Failed to load sound: %s\n", path);
+        exit(EXIT_FAILURE);
     }
 }
 
+void init_sound() {
+    InitAudioDevice();
+    load_soundfile(SFX_CONFIRM, "sfx/020_Confirm_10.wav");
+    load_soundfile(SFX_HIT, "sfx/03_Hit_Wet.wav");
+    load_soundfile(SFX_GET_HIT, "sfx/62_Get_hit_01.wav");
+    load_soundfile(SFX_EQUIP, "sfx/061_Equip_01.wav");
+    load_soundfile(SFX_COIN, "sfx/Coins.wav");
+}
+
+void unload_soundfile(int index) {
+    if (sfx[index].stream.buffer != NULL)
+        UnloadSound(sfx[index]);
+    else
+        fprintf(stderr, "Sound %d was not loaded or already unloaded\n", index);
+}
 
 int main() {
     init_gfx();
     init_sound();
-    //init_data();
     while (!WindowShouldClose()) {
         handle_input();
         update_state();
