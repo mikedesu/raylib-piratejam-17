@@ -7,11 +7,26 @@
 #include <raylib.h>
 #include <raymath.h>
 
+#define NUM_TEXTURES 32
+#define NUM_SFX 32
+
+#define TX_HERO 0
+#define TX_SWORD 1
+#define TX_ORC 2
+#define TX_GRASS_00 3
+#define TX_GRASS_01 4
+#define TX_GRASS_02 5
+#define TX_GRASS_03 6
+#define TX_COIN 7
+#define TX_SWORD_UP 8
+#define TX_COUNT 9
+
 #define SFX_CONFIRM 0
 #define SFX_HIT 1
 #define SFX_GET_HIT 2
 #define SFX_EQUIP 3
 #define SFX_COIN 4
+
 
 using std::map;
 using std::string;
@@ -34,18 +49,6 @@ typedef enum {
 } component;
 typedef enum { ENTITY_NONE, ENTITY_HERO, ENTITY_SWORD, ENTITY_ORC, ENTITY_COIN, ENTITY_COUNT } entity_type;
 typedef enum { SCENE_COMPANY, SCENE_TITLE, SCENE_GAMEPLAY, SCENE_GAMEOVER, SCENE_COUNT } game_scene;
-typedef enum {
-    TX_HERO,
-    TX_SWORD,
-    TX_ORC,
-    TX_GRASS_00,
-    TX_GRASS_01,
-    TX_GRASS_02,
-    TX_GRASS_03,
-    TX_COIN,
-    TX_COUNT
-} tx_index;
-
 
 bool create_player();
 bool create_orc();
@@ -70,10 +73,12 @@ Rectangle window_dst;
 const Vector2 origin = {0, 0};
 Camera2D cam2d;
 int frame_count = 0;
-Texture2D txinfo[32];
+
+
+Texture2D txinfo[NUM_TEXTURES];
 bool gameover = false;
 int player_dir = 1;
-Sound sfx[32];
+Sound sfx[NUM_SFX];
 vector<entityid> cleanup;
 map<entityid, long> component_table;
 unordered_map<entityid, string> names;
@@ -486,7 +491,7 @@ void handle_input() {
 }
 
 void draw_debug_panel() {
-    int x = 10, y = 10, s = 20;
+    int x = 10, y = 10, s = 30;
     Color c = debug_txt_color;
     Vector2 p = get_pos(hero_id);
     DrawText(TextFormat("Frame %d", frame_count), x, y, s, c);
@@ -535,6 +540,17 @@ void draw_title() {
     int x = target_w / 2 - m / 2;
     int y = target_h / 2 - s;
     DrawText(text, x, y, s, BLACK);
+
+    // lets try drawing TX_SWORD_UP directly beneath...
+    Rectangle src = {0, 0, 5, 8};
+    float scale = 16.0f;
+    float w = src.width * scale;
+    float h = src.height * scale;
+    float x0 = target_w / 2.0f - w / 2;
+    float y0 = target_h / 2.0f + s + 10;
+    //Rectangle dst = {(float)target_w / 2 - 4, (float)target_h / 2 + s, 5 * scale, 8 * scale};
+    Rectangle dst = {x0, y0, w, h};
+    DrawTexturePro(txinfo[TX_SWORD_UP], src, dst, origin, 0.0f, WHITE);
 }
 
 void draw_gameover() {
@@ -631,20 +647,27 @@ void load_texture(int index, const char* path) {
 }
 
 void load_textures() {
-    load_texture(0, "img/human.png");
-    load_texture(1, "img/sword.png");
-    load_texture(2, "img/orc.png");
-    load_texture(3, "img/tiles/grass-00.png");
-    load_texture(4, "img/tiles/grass-01.png");
-    load_texture(5, "img/tiles/grass-02.png");
-    load_texture(6, "img/tiles/grass-03.png");
-    load_texture(7, "img/coin.png");
+    load_texture(TX_HERO, "img/human.png");
+    load_texture(TX_SWORD, "img/sword.png");
+    load_texture(TX_ORC, "img/orc.png");
+    load_texture(TX_GRASS_00, "img/tiles/grass-00.png");
+    load_texture(TX_GRASS_01, "img/tiles/grass-01.png");
+    load_texture(TX_GRASS_02, "img/tiles/grass-02.png");
+    load_texture(TX_GRASS_03, "img/tiles/grass-03.png");
+    load_texture(TX_COIN, "img/coin.png");
+    load_texture(TX_SWORD_UP, "img/sword-up.png");
 }
 
 void unload_textures() {
-    UnloadTexture(txinfo[0]);
-    UnloadTexture(txinfo[1]);
-    UnloadTexture(txinfo[2]);
+    UnloadTexture(txinfo[TX_HERO]);
+    UnloadTexture(txinfo[TX_SWORD]);
+    UnloadTexture(txinfo[TX_ORC]);
+    UnloadTexture(txinfo[TX_GRASS_00]);
+    UnloadTexture(txinfo[TX_GRASS_01]);
+    UnloadTexture(txinfo[TX_GRASS_02]);
+    UnloadTexture(txinfo[TX_GRASS_03]);
+    UnloadTexture(txinfo[TX_COIN]);
+    UnloadTexture(txinfo[TX_SWORD_UP]);
 }
 
 void init_gfx() {
@@ -757,9 +780,30 @@ void update_state_destroy() {
     for (auto row : component_table)
         if (get_destroy(row.first)) cleanup.push_back(row.first);
     for (entityid id : cleanup) {
+        // we should first remove the entity from any maps
+        // that it might have a component for
+        names.erase(id);
+        types.erase(id);
+        positions.erase(id);
+        hitboxes.erase(id);
+        velocities.erase(id);
+        collides.erase(id);
+        destroy.erase(id);
+        sources.erase(id);
+        hp.erase(id);
+
+        // finally, remove the entity
         remove_entity(id);
     }
     entities_destroyed += cleanup.size();
+}
+
+void update_state_hero_hp() {
+    Vector2 myhp = get_hp(hero_id);
+    if (myhp.x <= 0) {
+        gameover = true;
+        current_scene = SCENE_GAMEOVER;
+    }
 }
 
 void update_state() {
@@ -769,6 +813,8 @@ void update_state() {
     if (frame_count % spawn_freq == 0) {
         create_orc();
     }
+
+    update_state_hero_hp();
     update_state_player_attack();
     update_state_velocity();
     update_state_hero_collision();
@@ -801,6 +847,20 @@ void unload_soundfile(int index) {
         fprintf(stderr, "Sound %d was not loaded or already unloaded\n", index);
 }
 
+void unload_soundfiles() {
+    // stop playing music if it was still playing
+    for (int i = 0; i < 32; i++) {
+        if (sfx[i].stream.buffer != NULL) {
+            StopSound(sfx[i]);
+        }
+    }
+    unload_soundfile(SFX_CONFIRM);
+    unload_soundfile(SFX_HIT);
+    unload_soundfile(SFX_GET_HIT);
+    unload_soundfile(SFX_EQUIP);
+    unload_soundfile(SFX_COIN);
+}
+
 int main() {
     init_gfx();
     init_sound();
@@ -810,6 +870,7 @@ int main() {
         draw_frame();
     }
     unload_textures();
+    unload_soundfiles();
     UnloadRenderTexture(target_texture);
     CloseAudioDevice();
     CloseWindow();
