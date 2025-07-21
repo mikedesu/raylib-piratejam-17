@@ -510,6 +510,10 @@ void draw_debug_panel() {
     DrawText(TextFormat("Entities destroyed: %d", entities_destroyed), x, y, s, c);
     y += s;
     DrawText(TextFormat("Coins: %d", coins_collected), x, y, s, c);
+    y += s;
+
+    Vector2 myhp = get_hp(hero_id);
+    DrawText(TextFormat("HP: %0.1f/%0.1f", myhp.x, myhp.y, coins_collected), x, y, s, c);
 }
 
 void draw_company() {
@@ -702,6 +706,12 @@ void update_state_velocity() {
     }
 }
 
+void damage_hero(int damage) {
+    Vector2 myhp = get_hp(hero_id);
+    myhp.x -= damage;
+    set_hp(hero_id, myhp);
+}
+
 void update_state_hero_collision() {
     // collision update
     Rectangle hb = get_hitbox(hero_id);
@@ -713,6 +723,7 @@ void update_state_hero_collision() {
             hero_collision_counter++;
             hero_total_damage_received++;
             set_destroy(row.first, true);
+            damage_hero(1);
             PlaySound(sfx[SFX_GET_HIT]);
         }
         if (t == ENTITY_COIN && CheckCollisionRecs(hb, get_hitbox(row.first))) {
