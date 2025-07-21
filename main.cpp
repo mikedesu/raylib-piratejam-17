@@ -155,6 +155,7 @@ void cleanup_data() {
     // reset counters
     hero_collision_counter = 0;
     sword_collision_counter = 0;
+    entities_destroyed = 0;
 }
 
 bool entity_exists(entityid id) {
@@ -369,9 +370,9 @@ bool create_orc() {
     float h = txinfo[0].height * 1.0f;
     // Select a random x,yf appropriate to the scene
     Vector2 p = get_pos(hero_id);
-    p.x += 160;
-
-    p.y += GetRandomValue(-1, 1) * 8.0f;
+    //Vector2 p = {200, 0};
+    p.x = 200;
+    p.y = 57; //+ GetRandomValue(-1, 4) * 8.0f;
 
 
     set_pos(id, p);
@@ -638,8 +639,8 @@ void update_state() {
     if (current_scene != SCENE_GAMEPLAY) return;
 
     // every N frames, create_orc
-    int spawn_freq = 60;
-    //int spawn_freq = 120;
+    //int spawn_freq = 30;
+    int spawn_freq = 120;
     if (frame_count % spawn_freq == 0) {
         create_orc();
     }

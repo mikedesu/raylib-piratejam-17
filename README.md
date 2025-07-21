@@ -49,6 +49,34 @@ Each orc only has 1 HP, but I want to experiment with some ideas:
 - Enemies with varying HP
 - "Sword durability" that allows for more sword-enemy collisions before being sheathed
 
+*7/20/2025: 7:32 pm*
+
+- want to implement coins and exp.
+- coins will be collected to buy power ups when u run into a merchant.
+  - power ups will include things like:
+      - making the sword bigger
+      - making the sword do more damage
+      - making the sword have more durability
+      - making the player have more controlled or faster movement
+      - making the player's hitbox smaller
+      - spawning a shield that sits in front and takes a hit
+- exp will be used to level up.
+    - some power ups may be unavailable at lower levels 
+- spawning of enemy initial position should be a bit fixed on the x so as to be predictable timing-wise
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
