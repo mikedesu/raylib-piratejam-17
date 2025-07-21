@@ -20,7 +20,18 @@ using std::vector;
 
 typedef int entityid;
 typedef int textureid;
-typedef enum { C_NAME, C_TYPE, C_POSITION, C_HITBOX, C_VELOCITY, C_COLLIDES, C_DESTROY, C_SRC, C_COUNT } component;
+typedef enum {
+    C_NAME,
+    C_TYPE,
+    C_POSITION,
+    C_HITBOX,
+    C_VELOCITY,
+    C_COLLIDES,
+    C_DESTROY,
+    C_SRC,
+    C_HP,
+    C_COUNT
+} component;
 typedef enum { ENTITY_NONE, ENTITY_HERO, ENTITY_SWORD, ENTITY_ORC, ENTITY_COIN, ENTITY_COUNT } entity_type;
 typedef enum { SCENE_COMPANY, SCENE_TITLE, SCENE_GAMEPLAY, SCENE_GAMEOVER, SCENE_COUNT } game_scene;
 typedef enum {
@@ -73,6 +84,7 @@ unordered_map<entityid, Vector2> velocities;
 unordered_map<entityid, bool> collides;
 unordered_map<entityid, bool> destroy;
 unordered_map<entityid, Rectangle> sources;
+unordered_map<entityid, Vector2> hp;
 entityid next_entityid = 0;
 const entityid ENTITYID_INVALID = -1;
 entityid hero_id = ENTITYID_INVALID;
@@ -82,6 +94,7 @@ int hero_collision_counter = 0;
 int sword_collision_counter = 0;
 int entities_destroyed = 0;
 int coins_collected = 0;
+int hero_total_damage_received = 0;
 
 void init_data() {
     if (!create_player() || !create_sword()) {
@@ -101,16 +114,18 @@ void cleanup_data() {
     collides.clear();
     destroy.clear();
     sources.clear();
+    hp.clear();
     // reset entity ids
-    next_entityid = 0;
     hero_id = ENTITYID_INVALID;
     sword_id = ENTITYID_INVALID;
     player_attacking = false;
     // reset counters
+    next_entityid = 0;
     hero_collision_counter = 0;
     sword_collision_counter = 0;
     entities_destroyed = 0;
     coins_collected = 0;
+    hero_total_damage_received = 0;
 }
 
 bool entity_exists(entityid id) {
@@ -297,6 +312,20 @@ bool get_destroy(entityid id) {
     return false;
 }
 
+bool set_hp(entityid id, Vector2 myhp) {
+    if (!entity_exists(id)) return false;
+    set_comp(id, C_HP);
+    hp[id] = myhp;
+    return true;
+}
+
+Vector2 get_hp(entityid id) {
+    if (!has_comp(id, C_HP)) return (Vector2){-1, -1};
+    auto it = hp.find(id);
+    if (it != hp.end()) return it->second;
+    return (Vector2){-1, -1}; // Return invalid hp if not found
+}
+
 bool create_player() {
     entityid id = add_entity();
     if (id == ENTITYID_INVALID) return false;
@@ -314,6 +343,8 @@ bool create_player() {
     set_hitbox(id, hitbox);
     set_collides(id, true);
     set_destroy(id, false);
+
+    set_hp(id, (Vector2){3.0f, 3.0f});
     hero_id = id;
     return true;
 }
@@ -343,9 +374,18 @@ bool create_orc() {
     float w = txinfo[0].width * 1.0f;
     float h = txinfo[0].height * 1.0f;
     // Select a random x,yf appropriate to the scene
-    Vector2 p = get_pos(hero_id);
-    p.x = 200;
-    p.y = 57;
+    Vector2 p = {200, 57};
+    // we want to at random to p.y:
+    // 1. add h
+    // 2. sub h
+    // 3. do nothing
+    int random_y = GetRandomValue(-1, 1);
+    if (random_y == -1) {
+        p.y -= h;
+    } else if (random_y == 1) {
+        p.y += h;
+    }
+
     set_pos(id, p);
     Rectangle hitbox = {p.x, p.y, w, h};
     set_hitbox(id, hitbox);
@@ -355,6 +395,7 @@ bool create_orc() {
     set_velocity(id, (Vector2){base_speed * GetRandomValue(1, random_max), 0});
     set_collides(id, true);
     set_destroy(id, false);
+    set_hp(id, (Vector2){1.0f, 1.0f});
     return true;
 }
 
@@ -379,15 +420,24 @@ bool create_coin(entityid id) {
 }
 
 void handle_input_gameplay() {
+    float v = 0.5f;
     if (IsKeyDown(KEY_LEFT)) {
-        update_x_pos(hero_id, -0.5);
-        update_hitbox_x(hero_id, -0.5);
+        update_x_pos(hero_id, -v);
+        update_hitbox_x(hero_id, -v);
         player_dir = -1;
     }
     if (IsKeyDown(KEY_RIGHT)) {
-        update_x_pos(hero_id, 0.5);
-        update_hitbox_x(hero_id, 0.5);
+        update_x_pos(hero_id, v);
+        update_hitbox_x(hero_id, v);
         player_dir = 1;
+    }
+    if (IsKeyDown(KEY_UP)) {
+        update_y_pos(hero_id, -v);
+        update_hitbox_y(hero_id, -v);
+    }
+    if (IsKeyDown(KEY_DOWN)) {
+        update_y_pos(hero_id, v);
+        update_hitbox_y(hero_id, v);
     }
     if (IsKeyPressed(KEY_A)) {
         player_attacking = true;
@@ -661,6 +711,7 @@ void update_state_hero_collision() {
         entity_type t = get_type(row.first);
         if (t == ENTITY_ORC && CheckCollisionRecs(hb, get_hitbox(row.first))) {
             hero_collision_counter++;
+            hero_total_damage_received++;
             set_destroy(row.first, true);
             PlaySound(sfx[SFX_GET_HIT]);
         }
