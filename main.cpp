@@ -131,8 +131,12 @@ int coins_collected = 0;
 int coins_lost = 0;
 int hero_total_damage_received = 0;
 
-#define NUM_SHADERS 2
+#define SH_RED_GLOW 0
+#define SH_INVERT 1
+#define SH_INTENSE_RED_GLOW 2
+#define NUM_SHADERS 3
 Shader shaders[NUM_SHADERS];
+
 
 void init_data() {
     if (!create_player() || !create_sword()) {
@@ -142,14 +146,19 @@ void init_data() {
 }
 
 void load_shaders() {
-    shaders[0] = LoadShader(0, "red-glow.frag");
-    if (shaders[0].id == 0) {
+    shaders[SH_RED_GLOW] = LoadShader(0, "red-glow.frag");
+    if (shaders[SH_RED_GLOW].id == 0) {
         fprintf(stderr, "Failed to load red-glow shader\n");
         exit(EXIT_FAILURE);
     }
-    shaders[1] = LoadShader(0, "invert.frag");
-    if (shaders[1].id == 0) {
+    shaders[SH_INVERT] = LoadShader(0, "invert.frag");
+    if (shaders[SH_INVERT].id == 0) {
         fprintf(stderr, "Failed to load invert shader\n");
+        exit(EXIT_FAILURE);
+    }
+    shaders[SH_INTENSE_RED_GLOW] = LoadShader(0, "intense-red-glow.frag");
+    if (shaders[SH_INTENSE_RED_GLOW].id == 0) {
+        fprintf(stderr, "Failed to load intense-red-glow shader\n");
         exit(EXIT_FAILURE);
     }
 }
@@ -707,16 +716,27 @@ void draw_gameover() {
 }
 
 void draw_gameplay() {
-    BeginShaderMode(shaders[1]);
     BeginMode2D(cam2d);
-    ClearBackground(BLACK);
-    Color c = BLUE;
-    float x = target_w / 16.0f;
-    float y = target_h / 16.0f;
+
+    Vector2 pos = get_pos(hero_id);
+    Rectangle src = get_src(hero_id);
     float w = target_w / 8.0f;
+    float x = target_w / 16.0f + w / 2;
+    if (pos.x + src.width > x) {
+        float time = (float)GetTime();
+        int index = SH_INTENSE_RED_GLOW;
+        SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
+        BeginShaderMode(shaders[index]);
+    }
+
+    ClearBackground(BLUE);
+    //Color c = BLUE;
+    x = target_w / 16.0f;
+    float y = target_h / 16.0f;
+    w = target_w / 8.0f;
     float h = target_h / 8.0f;
-    DrawRectangle(x, y, w, h, c);
-    Rectangle src = {0, 0, 8, 8};
+    //DrawRectangle(x, y, w, h, c);
+    src = {0, 0, 8, 8};
     y += 32;
     for (int j = 0; j < 4; j++) {
         Rectangle dst = {x, y, 8, 8};
@@ -754,26 +774,23 @@ void draw_gameplay() {
             DrawTexturePro(txinfo[TX_DWARF_MERCHANT], src, dst, origin, 0.0f, WHITE);
         }
     }
+    EndShaderMode();
 
-    x = target_w / 16.0f;
+    x = target_w / 16.0f + w / 2;
     y = target_h / 16.0f;
     w = target_w / 8.0f;
     h = target_h / 8.0f;
 
-    DrawLineEx((Vector2){x + w / 2, y}, (Vector2){x + w / 2, y + h}, 1.0f, (Color){0xff, 0xff, 0xff, 128});
-
+    DrawLineEx((Vector2){x, y}, (Vector2){x, y + h}, 1.0f, (Color){0xff, 0xff, 0xff, 128});
 
     EndMode2D();
-    EndShaderMode();
 }
 
 void draw_frame() {
-
-    // update music stream
-    if (IsWindowResized()) {
-        window_dst.width = GetScreenWidth();
-        window_dst.height = GetScreenHeight();
-    }
+    //if (IsWindowResized()) {
+    //    window_dst.width = GetScreenWidth();
+    //    window_dst.height = GetScreenHeight();
+    //}
     BeginDrawing();
     BeginTextureMode(target_texture);
     if (current_scene == SCENE_COMPANY)
@@ -1077,9 +1094,7 @@ int main() {
     init_gfx();
     init_sound();
     while (!WindowShouldClose()) {
-        //UpdateMusicStream(music);
         handle_input();
-        //UpdateMusicStream(music);
         update_state();
         UpdateMusicStream(music);
         draw_frame();
