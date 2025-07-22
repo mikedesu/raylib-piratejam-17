@@ -11,7 +11,8 @@
 #define SH_INVERT 1
 #define SH_INTENSE_RED_GLOW 2
 #define SH_BLACK_GLOW 3
-#define NUM_SHADERS 4
+#define SH_HP_RED_GLOW 4
+#define NUM_SHADERS 5
 
 
 #define NUM_TEXTURES 32
@@ -162,6 +163,7 @@ void load_shaders() {
     load_shader(SH_INTENSE_RED_GLOW, "intense-red-glow.frag");
     load_shader(SH_INVERT, "invert.frag");
     load_shader(SH_BLACK_GLOW, "black-glow.frag");
+    load_shader(SH_HP_RED_GLOW, "hp-red-glow.frag");
 }
 
 void unload_shaders() {
@@ -728,18 +730,17 @@ void draw_gameplay() {
     float x = target_w / 16.0f + w / 2;
     float x1 = target_w / 16.0f + 3 * w / 4;
 
-    if (pos.x + src.width > x1) {
-        float time = (float)GetTime();
-        int index = SH_INTENSE_RED_GLOW;
-        SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
-        BeginShaderMode(shaders[index]);
-
-    } else if (pos.x + src.width > x) {
-        float time = (float)GetTime();
-        int index = SH_RED_GLOW;
-        SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
-        BeginShaderMode(shaders[index]);
-    }
+    //if (pos.x + src.width > x1) {
+    //    float time = (float)GetTime();
+    //    int index = SH_INTENSE_RED_GLOW;
+    //    SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
+    //    BeginShaderMode(shaders[index]);
+    //} else if (pos.x + src.width > x) {
+    //    float time = (float)GetTime();
+    //    int index = SH_RED_GLOW;
+    //    SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
+    //    BeginShaderMode(shaders[index]);
+    //}
 
     ClearBackground(BLUE);
     x = target_w / 16.0f;
@@ -766,7 +767,16 @@ void draw_gameplay() {
         Rectangle dst = {pos.x, pos.y, src.width, src.height};
         Color c = WHITE;
         if (type == ENTITY_HERO) {
+            int index = SH_HP_RED_GLOW;
+            Vector2 myhp = get_hp(id);
+            float hp_frac = myhp.x / myhp.y;
+            //float time = (float)GetTime();
+            //int index = SH_INTENSE_RED_GLOW;
+            SetShaderValue(
+                shaders[index], GetShaderLocation(shaders[index], "hp_frac"), &hp_frac, SHADER_UNIFORM_FLOAT);
+            BeginShaderMode(shaders[index]);
             DrawTexturePro(txinfo[TX_HERO], src, dst, origin, 0.0f, c);
+            EndShaderMode();
         } else if (type == ENTITY_SWORD) {
             DrawTexturePro(txinfo[TX_SWORD], src, dst, origin, 0.0f, c);
         } else if (type == ENTITY_ORC) {
@@ -777,7 +787,7 @@ void draw_gameplay() {
             DrawTexturePro(txinfo[TX_DWARF_MERCHANT], src, dst, origin, 0.0f, WHITE);
         }
     }
-    EndShaderMode();
+    //EndShaderMode();
 
     //x = target_w / 16.0f + w / 2;
     //y = target_h / 16.0f;
