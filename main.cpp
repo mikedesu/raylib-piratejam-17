@@ -71,7 +71,7 @@ typedef enum {
     ENTITY_COUNT
 } entity_type;
 
-typedef enum { SCENE_COMPANY, SCENE_TITLE, SCENE_GAMEPLAY, SCENE_GAMEOVER, SCENE_COUNT } game_scene;
+typedef enum { SCENE_COMPANY, SCENE_TITLE, SCENE_GAMEPLAY, SCENE_GAMEOVER, SCENE_MERCHANT, SCENE_COUNT } game_scene;
 
 bool create_player();
 bool create_orc();
@@ -595,8 +595,14 @@ void handle_input_gameover() {
     }
 }
 
-void handle_input() {
+void handle_input_merchant() {
+    if (IsKeyPressed(KEY_ENTER)) {
+        current_scene = SCENE_GAMEPLAY;
+        PlaySound(sfx[SFX_CONFIRM]);
+    }
+}
 
+void handle_input() {
     // take screenshot
     if (IsKeyPressed(KEY_F12)) {
         TakeScreenshot(TextFormat("screenshot_%d.png", frame_count));
@@ -611,6 +617,8 @@ void handle_input() {
         handle_input_gameplay();
     else if (current_scene == SCENE_GAMEOVER)
         handle_input_gameover();
+    else if (current_scene == SCENE_MERCHANT)
+        handle_input_merchant();
 }
 
 void draw_debug_panel() {
@@ -751,6 +759,10 @@ void draw_gameover() {
     DrawTexturePro(gameover_texture.texture, target_src, target_dst, origin, 0.0f, WHITE);
 }
 
+void draw_merchant() {
+    ClearBackground(RED);
+}
+
 void draw_gameplay() {
     BeginMode2D(cam2d);
 
@@ -842,6 +854,8 @@ void draw_frame() {
         draw_gameplay();
     else if (current_scene == SCENE_GAMEOVER)
         draw_gameover();
+    else if (current_scene == SCENE_MERCHANT)
+        draw_merchant();
     EndTextureMode();
     ClearBackground(BLACK);
     DrawTexturePro(target_texture.texture, target_src, window_dst, origin, 0.0f, WHITE);
@@ -1001,6 +1015,8 @@ void update_state_hero_collision() {
             hero_collision_counter++;
             set_destroy(row.first, true);
             PlaySound(sfx[SFX_EQUIP]);
+
+            current_scene = SCENE_MERCHANT;
         }
     }
 }
