@@ -828,6 +828,16 @@ void draw_merchant() {
     } else if (merchant_item_selection == 2) {
         DrawRectangleLinesEx(dst3, 1.0f, RED);
     }
+
+    float pad = 10.0f;
+    float y2 = y1 + h1 + pad;
+    dst1 = {x1, y2, w1, h1};
+    dst2 = {x2, y2, w1, h1};
+    dst3 = {x3, y2, w1, h1};
+
+    DrawText("Sword", dst1.x, dst1.y, 20, WHITE);
+    DrawText("Sword", dst2.x, dst1.y, 20, WHITE);
+    DrawText("Sword", dst3.x, dst1.y, 20, WHITE);
 }
 
 void draw_gameplay() {
