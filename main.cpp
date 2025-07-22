@@ -622,6 +622,7 @@ void draw_debug_panel() {
     y += s;
     DrawText(TextFormat("Continues: %d", continues), x, y, s, c);
     y += s;
+    DrawText(TextFormat("spawn_freq: %d", spawn_freq), x, y, s, c);
 }
 
 
@@ -776,15 +777,15 @@ void draw_gameplay() {
     }
     EndShaderMode();
 
-    x = target_w / 16.0f + w / 2;
-    y = target_h / 16.0f;
-    w = target_w / 8.0f;
-    h = target_h / 8.0f;
+    //x = target_w / 16.0f + w / 2;
+    //y = target_h / 16.0f;
+    //w = target_w / 8.0f;
+    //h = target_h / 8.0f;
 
-    DrawLineEx((Vector2){x, y}, (Vector2){x, y + h}, 1.0f, (Color){0xff, 0xff, 0xff, 96});
+    //DrawLineEx((Vector2){x, y}, (Vector2){x, y + h}, 1.0f, (Color){0xff, 0xff, 0xff, 96});
 
-    x = target_w / 16.0f + 3 * w / 4;
-    DrawLineEx((Vector2){x, y}, (Vector2){x, y + h}, 1.0f, (Color){0xff, 0xff, 0xff, 96});
+    //x = target_w / 16.0f + 3 * w / 4;
+    //DrawLineEx((Vector2){x, y}, (Vector2){x, y + h}, 1.0f, (Color){0xff, 0xff, 0xff, 96});
 
     EndMode2D();
 }
@@ -1023,8 +1024,8 @@ void update_level_up() {
     if (levelup_flag) {
         player_level++;
         levelup_flag = false;
-        spawn_freq = 120 - player_level * 10; // increase spawn frequency
-        current_orc_speed = base_orc_speed - player_level * 0.05f; // increase orc speed
+        spawn_freq -= player_level * 10; // increase spawn frequency
+        //current_orc_speed = base_orc_speed - player_level * 0.05f; // increase orc speed
     }
 
     if (do_spawn_merchant) {
@@ -1062,6 +1063,8 @@ void load_soundfile(int index, const char* path) {
 
 void init_sound() {
     InitAudioDevice();
+    SetAudioStreamBufferSizeDefault(4096);
+
     load_soundfile(SFX_CONFIRM, "sfx/020_Confirm_10.wav");
     load_soundfile(SFX_HIT, "sfx/03_Hit_Wet.wav");
     load_soundfile(SFX_GET_HIT, "sfx/62_Get_hit_01.wav");
