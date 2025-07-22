@@ -30,7 +30,8 @@
 #define TX_SWORD_UP 8
 #define TX_WILD_ORC 9
 #define TX_DWARF_MERCHANT 10
-#define TX_COUNT 11
+#define TX_BOOTS 11
+#define TX_COUNT 12
 
 #define SFX_CONFIRM 0
 #define SFX_HIT 1
@@ -73,6 +74,8 @@ typedef enum {
     ENTITY_DWARF_MERCHANT,
     ENTITY_COUNT
 } entity_type;
+
+typedef enum { ITEM_SWORD, ITEM_BOOTS, ITEM_COUNT } item_type;
 
 typedef enum { SCENE_COMPANY, SCENE_TITLE, SCENE_GAMEPLAY, SCENE_GAMEOVER, SCENE_MERCHANT, SCENE_COUNT } game_scene;
 
@@ -142,12 +145,17 @@ bool player_attacking = false;
 int hero_collision_counter = 0;
 int sword_collision_counter = 0;
 int entities_destroyed = 0;
+int current_coins = 0;
+int coins_spent = 0;
 int coins_collected = 0;
 int coins_lost = 0;
 int hero_total_damage_received = 0;
 int continues = 0;
 float starting_sword_durability = 2.0f;
 float current_sword_durability = 2.0f;
+
+item_type merchant_items[MERCHANT_ITEM_SELECTION_MAX] = {ITEM_SWORD, ITEM_SWORD, ITEM_BOOTS};
+
 
 Shader shaders[NUM_SHADERS];
 
@@ -207,14 +215,17 @@ void cleanup_data() {
     sword_collision_counter = 0;
     entities_destroyed = 0;
     coins_collected = 0;
+    coins_spent = 0;
+    current_coins = 0;
+    coins_lost = 0;
     hero_total_damage_received = 0;
     player_level = 1;
     do_spawn_merchant = false;
-    coins_lost = 0;
     current_orc_speed = base_orc_speed;
     // reset game state
     gameover = false;
     spawn_freq = DEFAULT_SPAWN_FREQ;
+    current_sword_durability = starting_sword_durability;
 }
 
 bool entity_exists(entityid id) {
@@ -602,8 +613,20 @@ void handle_input_gameover() {
 
 void handle_input_merchant() {
     if (IsKeyPressed(KEY_ENTER)) {
+
+        // we have to handle what happens on purchasing an item
+        // in the beginning, we will just default to incrementing
+        // the sword's durability
+        //Vector2 dura = get_durability(sword_id);
+        //set_durability(sword_id, dura);
+        current_sword_durability++;
+
+        current_coins -= base_coin_level_up_amount;
+
         current_scene = SCENE_GAMEPLAY;
         PlaySound(sfx[SFX_CONFIRM]);
+
+
     } else if (IsKeyPressed(KEY_LEFT)) {
         merchant_item_selection--;
         if (merchant_item_selection < 0) {
@@ -661,7 +684,7 @@ void draw_debug_panel() {
     y += s;
     DrawText(TextFormat("Entities destroyed: %d", entities_destroyed), x, y, s, c);
     y += s;
-    DrawText(TextFormat("Coins: %d", coins_collected), x, y, s, c);
+    DrawText(TextFormat("Coins collected: %d", coins_collected), x, y, s, c);
     y += s;
     DrawText(TextFormat("Coins Lost: %d", coins_lost), x, y, s, c);
     y += s;
@@ -674,6 +697,10 @@ void draw_debug_panel() {
     DrawText(TextFormat("Continues: %d", continues), x, y, s, c);
     y += s;
     DrawText(TextFormat("spawn_freq: %d", spawn_freq), x, y, s, c);
+    y += s;
+    DrawText(TextFormat("Current coins: %d", current_coins), x, y, s, c);
+    y += s;
+    DrawText(TextFormat("Coins spent: %d", coins_spent), x, y, s, c);
     y += s;
 
     Vector2 dura = get_durability(sword_id);
@@ -819,46 +846,53 @@ void draw_merchant() {
     dst2.width = src1.width * scale;
     dst3.width = src1.width * scale;
 
-    if (merchant_item_selection == 0) {
-        float time = (float)GetTime();
-        int index = SH_BLUE_GLOW;
-        SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
-        BeginShaderMode(shaders[index]);
-    }
-    DrawTexturePro(txinfo[txkey], src1, dst1, origin, 0.0f, WHITE);
-    if (merchant_item_selection == 0) {
-        EndShaderMode();
+    int index = SH_BLUE_GLOW;
+    float time = (float)GetTime();
+
+    Rectangle dsts[MERCHANT_ITEM_SELECTION_MAX] = {dst1, dst2, dst3};
+
+    for (int i = 0; i < MERCHANT_ITEM_SELECTION_MAX; i++) {
+        if (merchant_item_selection == i) {
+            DrawRectangleLinesEx(dsts[i], 2.0f, BLUE);
+            SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
+            BeginShaderMode(shaders[index]);
+        }
+        DrawTexturePro(txinfo[txkey], src1, dsts[i], origin, 0.0f, WHITE);
+        if (merchant_item_selection == i) {
+            EndShaderMode();
+        }
     }
 
-    if (merchant_item_selection == 1) {
-        float time = (float)GetTime();
-        int index = SH_BLUE_GLOW;
-        SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
-        BeginShaderMode(shaders[index]);
-    }
-    DrawTexturePro(txinfo[txkey], src1, dst2, origin, 0.0f, WHITE);
-    if (merchant_item_selection == 1) {
-        EndShaderMode();
-    }
+    //if (merchant_item_selection == 0) {
+    //    DrawRectangleLinesEx(dsts[0], 2.0f, BLUE);
+    //    SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
+    //    BeginShaderMode(shaders[index]);
+    //}
+    //DrawTexturePro(txinfo[txkey], src1, dsts[0], origin, 0.0f, WHITE);
+    //if (merchant_item_selection == 0) {
+    //    EndShaderMode();
+    //}
 
-    if (merchant_item_selection == 2) {
-        float time = (float)GetTime();
-        int index = SH_BLUE_GLOW;
-        SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
-        BeginShaderMode(shaders[index]);
-    }
-    DrawTexturePro(txinfo[txkey], src1, dst3, origin, 0.0f, WHITE);
-    if (merchant_item_selection == 2) {
-        EndShaderMode();
-    }
+    //if (merchant_item_selection == 1) {
+    //    DrawRectangleLinesEx(dsts[1], 2.0f, BLUE);
+    //    SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
+    //    BeginShaderMode(shaders[index]);
+    //}
+    //DrawTexturePro(txinfo[txkey], src1, dsts[1], origin, 0.0f, WHITE);
+    //if (merchant_item_selection == 1) {
+    //    EndShaderMode();
+    //}
 
-    if (merchant_item_selection == 0) {
-        DrawRectangleLinesEx(dst1, 2.0f, BLUE);
-    } else if (merchant_item_selection == 1) {
-        DrawRectangleLinesEx(dst2, 2.0f, BLUE);
-    } else if (merchant_item_selection == 2) {
-        DrawRectangleLinesEx(dst3, 2.0f, BLUE);
-    }
+    //if (merchant_item_selection == 2) {
+    //    DrawRectangleLinesEx(dsts[2], 2.0f, BLUE);
+    //    SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
+    //    BeginShaderMode(shaders[index]);
+    //}
+    //DrawTexturePro(txinfo[txkey], src1, dsts[2], origin, 0.0f, WHITE);
+    //if (merchant_item_selection == 2) {
+    //    EndShaderMode();
+    //}
+
 
     float pad = 10.0f;
     float y2 = y1 + h1 + pad;
@@ -1119,6 +1153,7 @@ void update_state_hero_collision() {
             // play a sound effect
             PlaySound(sfx[SFX_COIN]);
             coins_collected++;
+            current_coins++;
         } else if (t == ENTITY_DWARF_MERCHANT && CheckCollisionRecs(hb, get_hitbox(row.first))) {
             hero_collision_counter++;
             set_destroy(row.first, true);
@@ -1183,7 +1218,8 @@ void update_state_hero_hp() {
 }
 
 void update_level_up() {
-    if (coins_collected >= base_coin_level_up_amount * player_level && !levelup_flag && !do_spawn_merchant) {
+    //if (coins_collected >= base_coin_level_up_amount * player_level && !levelup_flag && !do_spawn_merchant) {
+    if (current_coins >= base_coin_level_up_amount * player_level && !levelup_flag && !do_spawn_merchant) {
         levelup_flag = true;
         do_spawn_merchant = true;
     }
