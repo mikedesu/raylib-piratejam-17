@@ -827,6 +827,7 @@ void draw_gameplay() {
 }
 
 void draw_frame() {
+    UpdateMusicStream(music);
     //if (IsWindowResized()) {
     //    window_dst.width = GetScreenWidth();
     //    window_dst.height = GetScreenHeight();
@@ -1145,7 +1146,6 @@ int main() {
     while (!WindowShouldClose()) {
         handle_input();
         update_state();
-        UpdateMusicStream(music);
         draw_frame();
     }
     unload_textures();
