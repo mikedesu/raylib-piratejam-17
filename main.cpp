@@ -39,6 +39,8 @@
 
 #define DEFAULT_SPAWN_FREQ 360
 
+#define MERCHANT_ITEM_SELECTION_MAX 3
+
 using std::map;
 using std::string;
 using std::unordered_map;
@@ -109,7 +111,8 @@ int random_orc_speed_mod_max = 2;
 
 int player_level = 1;
 bool levelup_flag = false;
-int base_coin_level_up_amount = 10;
+int base_coin_level_up_amount = 3;
+int merchant_item_selection = 0;
 
 bool do_spawn_merchant = false;
 
@@ -599,6 +602,17 @@ void handle_input_merchant() {
     if (IsKeyPressed(KEY_ENTER)) {
         current_scene = SCENE_GAMEPLAY;
         PlaySound(sfx[SFX_CONFIRM]);
+    } else if (IsKeyPressed(KEY_LEFT)) {
+        merchant_item_selection--;
+        if (merchant_item_selection < 0) {
+            merchant_item_selection = MERCHANT_ITEM_SELECTION_MAX;
+        }
+
+    } else if (IsKeyPressed(KEY_RIGHT)) {
+        merchant_item_selection++;
+        if (merchant_item_selection >= MERCHANT_ITEM_SELECTION_MAX) {
+            merchant_item_selection = 0;
+        }
     }
 }
 
@@ -760,7 +774,60 @@ void draw_gameover() {
 }
 
 void draw_merchant() {
-    ClearBackground(RED);
+    ClearBackground(BLACK);
+
+    // draw some text above the dwarf in big font
+    int s = 30;
+    const char* text = "y0, watchu need?";
+    int m = MeasureText(text, s);
+    Rectangle src = {0, 0, 9, 7};
+    float scale = 16.0f;
+    float w = src.width * scale;
+    float h = src.height * scale;
+    float x0 = target_w / 2.0f - w / 2;
+    float y0 = target_h / 4.0f - h / 2;
+    Rectangle dst = {x0, y0, w, h};
+
+    int x = target_w / 2 - m / 2;
+    // position it above the dwarf
+    int y = y0 - s - 10; // move up by s + 10 pixels
+    Color c = WHITE;
+    DrawText(text, x, y, s, c);
+
+    // draw the dwarf merchant texture in the center of the screen
+    DrawTexturePro(txinfo[TX_DWARF_MERCHANT], src, dst, origin, 0.0f, WHITE);
+
+    float base_box_size = 8;
+    float w1 = base_box_size * scale;
+    float h1 = base_box_size * scale;
+    float x1 = target_w / 6.0f - w1 / 2;
+    float x2 = 3 * target_w / 6.0f - w1 / 2;
+    float x3 = 5 * target_w / 6.0f - w1 / 2;
+    float y1 = 5 * target_h / 8.0f - h1 / 2;
+    Rectangle dst1 = {x1, y1, w1, h1};
+    Rectangle dst2 = {x2, y1, w1, h1};
+    Rectangle dst3 = {x3, y1, w1, h1};
+    //DrawRectangleLinesEx(dst1, 1.0f, RED);
+    //DrawRectangleLinesEx(dst2, 1.0f, RED);
+    //DrawRectangleLinesEx(dst3, 1.0f, RED);
+
+    int txkey = TX_SWORD_UP;
+    Rectangle src1 = {0, 0, (float)txinfo[txkey].width, (float)txinfo[txkey].height};
+    dst1.width = src1.width * scale;
+    dst2.width = src1.width * scale;
+    dst3.width = src1.width * scale;
+
+    DrawTexturePro(txinfo[txkey], src1, dst1, origin, 0.0f, WHITE);
+    DrawTexturePro(txinfo[txkey], src1, dst2, origin, 0.0f, WHITE);
+    DrawTexturePro(txinfo[txkey], src1, dst3, origin, 0.0f, WHITE);
+
+    if (merchant_item_selection == 0) {
+        DrawRectangleLinesEx(dst1, 1.0f, RED);
+    } else if (merchant_item_selection == 1) {
+        DrawRectangleLinesEx(dst2, 1.0f, RED);
+    } else if (merchant_item_selection == 2) {
+        DrawRectangleLinesEx(dst3, 1.0f, RED);
+    }
 }
 
 void draw_gameplay() {
