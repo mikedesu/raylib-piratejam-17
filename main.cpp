@@ -67,6 +67,7 @@ bool create_player();
 bool create_orc();
 bool create_sword();
 bool create_coin(entityid id);
+bool create_dwarf_merchant();
 
 const char* game_window_title = "evildojo666 presents: There can be...";
 int window_w = 1920;
@@ -100,6 +101,8 @@ int player_level = 1;
 bool levelup_flag = false;
 int base_coin_level_up_amount = 10;
 
+bool do_spawn_merchant = false;
+
 Texture2D txinfo[NUM_TEXTURES];
 bool gameover = false;
 int player_dir = 1;
@@ -125,12 +128,37 @@ int hero_collision_counter = 0;
 int sword_collision_counter = 0;
 int entities_destroyed = 0;
 int coins_collected = 0;
+int coins_lost = 0;
 int hero_total_damage_received = 0;
+
+#define NUM_SHADERS 2
+Shader shaders[NUM_SHADERS];
 
 void init_data() {
     if (!create_player() || !create_sword()) {
         fprintf(stderr, "Failed to create player or sword entity\n");
         exit(EXIT_FAILURE);
+    }
+}
+
+void load_shaders() {
+    shaders[0] = LoadShader(0, "red-glow.frag");
+    if (shaders[0].id == 0) {
+        fprintf(stderr, "Failed to load red-glow shader\n");
+        exit(EXIT_FAILURE);
+    }
+    shaders[1] = LoadShader(0, "invert.frag");
+    if (shaders[1].id == 0) {
+        fprintf(stderr, "Failed to load invert shader\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+void unload_shaders() {
+    for (int i = 0; i < NUM_SHADERS; i++) {
+        if (shaders[i].id != 0) {
+            UnloadShader(shaders[i]);
+        }
     }
 }
 
@@ -157,7 +185,12 @@ void cleanup_data() {
     entities_destroyed = 0;
     coins_collected = 0;
     hero_total_damage_received = 0;
-    player_level = 0;
+    player_level = 1;
+    do_spawn_merchant = false;
+    coins_lost = 0;
+    current_orc_speed = base_orc_speed;
+    // reset game state
+    gameover = false;
 }
 
 bool entity_exists(entityid id) {
@@ -408,23 +441,39 @@ bool create_orc() {
     float h = txinfo[0].height * 1.0f;
     // Select a random x,yf appropriate to the scene
     Vector2 p = {200, 57};
-    // we want to at random to p.y:
-    // 1. add h
-    // 2. sub h
-    // 3. do nothing
     int random_y = 0;
-    //if (player_level == 1)
     random_y = GetRandomValue(-1, 1);
-    //else
-    //    random_y = GetRandomValue(-2, 2);
     p.y += random_y * h;
-
     set_pos(id, p);
     Rectangle hitbox = {p.x, p.y, w, h};
     set_hitbox(id, hitbox);
     // Set a random velocity to the orc
     set_velocity(id, (Vector2){current_orc_speed * GetRandomValue(1, random_orc_speed_mod_max), 0});
+    set_collides(id, true);
+    set_destroy(id, false);
+    set_hp(id, (Vector2){1.0f, 1.0f});
+    return true;
+}
 
+
+bool create_dwarf_merchant() {
+    entityid id = add_entity();
+    if (id == ENTITYID_INVALID) return false;
+    set_name(id, "dwarf merchant");
+    set_type(id, ENTITY_DWARF_MERCHANT);
+    Rectangle src = {0, 0, -9, 7};
+    set_src(id, src);
+    float w = txinfo[0].width * 1.0f;
+    float h = txinfo[0].height * 1.0f;
+    // Select a random x,yf appropriate to the scene
+    Vector2 p = {200, 57};
+    int random_y = 0;
+    random_y = GetRandomValue(-1, 1);
+    p.y += random_y * h;
+    set_pos(id, p);
+    Rectangle hitbox = {p.x, p.y, w, h};
+    set_hitbox(id, hitbox);
+    set_velocity(id, (Vector2){-0.25f, 0});
     set_collides(id, true);
     set_destroy(id, false);
     set_hp(id, (Vector2){1.0f, 1.0f});
@@ -553,6 +602,8 @@ void draw_debug_panel() {
     y += s;
     DrawText(TextFormat("Coins: %d", coins_collected), x, y, s, c);
     y += s;
+    DrawText(TextFormat("Coins Lost: %d", coins_lost), x, y, s, c);
+    y += s;
 
     Vector2 myhp = get_hp(hero_id);
     DrawText(TextFormat("HP: %0.1f/%0.1f", myhp.x, myhp.y, coins_collected), x, y, s, c);
@@ -656,6 +707,7 @@ void draw_gameover() {
 }
 
 void draw_gameplay() {
+    BeginShaderMode(shaders[1]);
     BeginMode2D(cam2d);
     ClearBackground(BLACK);
     Color c = BLUE;
@@ -681,30 +733,25 @@ void draw_gameplay() {
         if (pos.x < 0 || pos.y < 0) continue;
         entity_type type = get_type(id);
         if (type == ENTITY_HERO) {
-            //Rectangle src = {0, 0, player_dir * 7.0f, 7};
             Rectangle src = get_src(id);
             Rectangle dst = {pos.x, pos.y, src.width, src.height};
-            //Rectangle hb = get_hitbox(id);
             DrawTexturePro(txinfo[TX_HERO], src, dst, origin, 0.0f, WHITE);
-            //DrawRectangleLinesEx(hb, 1.0f, (Color){0xFF, 0, 0, 127});
         } else if (type == ENTITY_SWORD) {
             Rectangle src = get_src(id);
             Rectangle dst = {pos.x, pos.y, src.width, src.height};
-            //Rectangle hb = get_hitbox(id);
             DrawTexturePro(txinfo[TX_SWORD], src, dst, origin, 0.0f, WHITE);
-            //DrawRectangleLinesEx(hb, 1.0f, (Color){0xFF, 0, 0, 127});
         } else if (type == ENTITY_ORC) {
             Rectangle src = get_src(id);
             Rectangle dst = {pos.x, pos.y, src.width, src.height};
-            //Rectangle hb = get_hitbox(id);
             DrawTexturePro(txinfo[TX_ORC], src, dst, origin, 0.0f, WHITE);
-            //DrawRectangleLinesEx(hb, 1.0f, (Color){0xFF, 0, 0, 127});
         } else if (type == ENTITY_COIN) {
-            //Rectangle src = {0, 0, -4, 6};
             Rectangle src = get_src(id);
             Rectangle dst = {pos.x, pos.y, src.width, src.height};
-            //Rectangle hb = get_hitbox(id);
             DrawTexturePro(txinfo[TX_COIN], src, dst, origin, 0.0f, WHITE);
+        } else if (type == ENTITY_DWARF_MERCHANT) {
+            Rectangle src = get_src(id);
+            Rectangle dst = {pos.x, pos.y, src.width, src.height};
+            DrawTexturePro(txinfo[TX_DWARF_MERCHANT], src, dst, origin, 0.0f, WHITE);
         }
     }
 
@@ -713,10 +760,11 @@ void draw_gameplay() {
     w = target_w / 8.0f;
     h = target_h / 8.0f;
 
-    DrawLineEx((Vector2){x + w / 2, y}, (Vector2){x + w / 2, y + h}, 1.0f, (Color){0x66, 0x66, 0x66, 255});
+    DrawLineEx((Vector2){x + w / 2, y}, (Vector2){x + w / 2, y + h}, 1.0f, (Color){0xff, 0xff, 0xff, 128});
 
 
     EndMode2D();
+    EndShaderMode();
 }
 
 void draw_frame() {
@@ -784,6 +832,8 @@ void load_textures() {
 }
 
 void unload_textures() {
+    unload_shaders();
+
     for (int i = TX_HERO; i < TX_COUNT; i++) {
         UnloadTexture(txinfo[i]);
     }
@@ -812,6 +862,8 @@ void init_gfx() {
     cam2d.rotation = 0.0f;
     cam2d.zoom = default_zoom;
     load_textures();
+
+    load_shaders();
 }
 
 void update_state_player_attack() {
@@ -851,6 +903,11 @@ void update_state_velocity() {
                     gameover = true;
                     current_scene = SCENE_GAMEOVER;
                     return;
+                } else if (t == ENTITY_COIN) {
+                    coins_lost++;
+                } else if (t == ENTITY_DWARF_MERCHANT) {
+                    // we want to spawn again
+                    do_spawn_merchant = true;
                 }
             }
         }
@@ -876,13 +933,16 @@ void update_state_hero_collision() {
             set_destroy(row.first, true);
             damage_hero(1);
             PlaySound(sfx[SFX_GET_HIT]);
-        }
-        if (t == ENTITY_COIN && CheckCollisionRecs(hb, get_hitbox(row.first))) {
+        } else if (t == ENTITY_COIN && CheckCollisionRecs(hb, get_hitbox(row.first))) {
             hero_collision_counter++;
             set_destroy(row.first, true);
             // play a sound effect
             PlaySound(sfx[SFX_COIN]);
             coins_collected++;
+        } else if (t == ENTITY_DWARF_MERCHANT && CheckCollisionRecs(hb, get_hitbox(row.first))) {
+            hero_collision_counter++;
+            set_destroy(row.first, true);
+            PlaySound(sfx[SFX_EQUIP]);
         }
     }
 }
@@ -935,8 +995,9 @@ void update_state_hero_hp() {
 }
 
 void update_level_up() {
-    if (coins_collected >= base_coin_level_up_amount * player_level) {
+    if (coins_collected >= base_coin_level_up_amount * player_level && !levelup_flag && !do_spawn_merchant) {
         levelup_flag = true;
+        do_spawn_merchant = true;
     }
 
     if (levelup_flag) {
@@ -944,6 +1005,11 @@ void update_level_up() {
         levelup_flag = false;
         spawn_freq = 120 - player_level * 10; // increase spawn frequency
         current_orc_speed = base_orc_speed - player_level * 0.05f; // increase orc speed
+    }
+
+    if (do_spawn_merchant) {
+        create_dwarf_merchant();
+        do_spawn_merchant = false;
     }
 }
 
