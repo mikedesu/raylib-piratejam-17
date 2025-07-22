@@ -12,7 +12,8 @@
 #define SH_INTENSE_RED_GLOW 2
 #define SH_BLACK_GLOW 3
 #define SH_HP_RED_GLOW 4
-#define NUM_SHADERS 5
+#define SH_BLUE_GLOW 5
+#define NUM_SHADERS 6
 
 
 #define NUM_TEXTURES 32
@@ -172,6 +173,7 @@ void load_shaders() {
     load_shader(SH_INVERT, "invert.frag");
     load_shader(SH_BLACK_GLOW, "black-glow.frag");
     load_shader(SH_HP_RED_GLOW, "hp-red-glow.frag");
+    load_shader(SH_BLUE_GLOW, "blue-glow.frag");
 }
 
 void unload_shaders() {
@@ -817,16 +819,45 @@ void draw_merchant() {
     dst2.width = src1.width * scale;
     dst3.width = src1.width * scale;
 
+    if (merchant_item_selection == 0) {
+        float time = (float)GetTime();
+        int index = SH_BLUE_GLOW;
+        SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
+        BeginShaderMode(shaders[index]);
+    }
     DrawTexturePro(txinfo[txkey], src1, dst1, origin, 0.0f, WHITE);
+    if (merchant_item_selection == 0) {
+        EndShaderMode();
+    }
+
+    if (merchant_item_selection == 1) {
+        float time = (float)GetTime();
+        int index = SH_BLUE_GLOW;
+        SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
+        BeginShaderMode(shaders[index]);
+    }
     DrawTexturePro(txinfo[txkey], src1, dst2, origin, 0.0f, WHITE);
+    if (merchant_item_selection == 1) {
+        EndShaderMode();
+    }
+
+    if (merchant_item_selection == 2) {
+        float time = (float)GetTime();
+        int index = SH_BLUE_GLOW;
+        SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
+        BeginShaderMode(shaders[index]);
+    }
     DrawTexturePro(txinfo[txkey], src1, dst3, origin, 0.0f, WHITE);
+    if (merchant_item_selection == 2) {
+        EndShaderMode();
+    }
 
     if (merchant_item_selection == 0) {
-        DrawRectangleLinesEx(dst1, 1.0f, RED);
+        DrawRectangleLinesEx(dst1, 2.0f, BLUE);
     } else if (merchant_item_selection == 1) {
-        DrawRectangleLinesEx(dst2, 1.0f, RED);
+        DrawRectangleLinesEx(dst2, 2.0f, BLUE);
     } else if (merchant_item_selection == 2) {
-        DrawRectangleLinesEx(dst3, 1.0f, RED);
+        DrawRectangleLinesEx(dst3, 2.0f, BLUE);
     }
 
     float pad = 10.0f;
