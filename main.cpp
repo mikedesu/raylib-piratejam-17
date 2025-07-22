@@ -7,6 +7,13 @@
 #include <raylib.h>
 #include <raymath.h>
 
+#define SH_RED_GLOW 0
+#define SH_INVERT 1
+#define SH_INTENSE_RED_GLOW 2
+#define SH_BLACK_GLOW 3
+#define NUM_SHADERS 4
+
+
 #define NUM_TEXTURES 32
 #define NUM_SFX 32
 
@@ -130,11 +137,8 @@ int entities_destroyed = 0;
 int coins_collected = 0;
 int coins_lost = 0;
 int hero_total_damage_received = 0;
+int continues = 0;
 
-#define SH_RED_GLOW 0
-#define SH_INVERT 1
-#define SH_INTENSE_RED_GLOW 2
-#define NUM_SHADERS 3
 Shader shaders[NUM_SHADERS];
 
 
@@ -145,22 +149,19 @@ void init_data() {
     }
 }
 
+void load_shader(int index, const char* path) {
+    shaders[index] = LoadShader(0, path);
+    if (shaders[index].id == 0) {
+        fprintf(stderr, "Failed to load shader: %s\n", path);
+        exit(EXIT_FAILURE);
+    }
+}
+
 void load_shaders() {
-    shaders[SH_RED_GLOW] = LoadShader(0, "red-glow.frag");
-    if (shaders[SH_RED_GLOW].id == 0) {
-        fprintf(stderr, "Failed to load red-glow shader\n");
-        exit(EXIT_FAILURE);
-    }
-    shaders[SH_INVERT] = LoadShader(0, "invert.frag");
-    if (shaders[SH_INVERT].id == 0) {
-        fprintf(stderr, "Failed to load invert shader\n");
-        exit(EXIT_FAILURE);
-    }
-    shaders[SH_INTENSE_RED_GLOW] = LoadShader(0, "intense-red-glow.frag");
-    if (shaders[SH_INTENSE_RED_GLOW].id == 0) {
-        fprintf(stderr, "Failed to load intense-red-glow shader\n");
-        exit(EXIT_FAILURE);
-    }
+    load_shader(SH_RED_GLOW, "red-glow.frag");
+    load_shader(SH_INTENSE_RED_GLOW, "intense-red-glow.frag");
+    load_shader(SH_INVERT, "invert.frag");
+    load_shader(SH_BLACK_GLOW, "black-glow.frag");
 }
 
 void unload_shaders() {
@@ -619,6 +620,8 @@ void draw_debug_panel() {
     y += s;
     DrawText(TextFormat("Level: %d", player_level), x, y, s, c);
     y += s;
+    DrawText(TextFormat("Continues: %d", continues), x, y, s, c);
+    y += s;
 }
 
 
@@ -722,20 +725,26 @@ void draw_gameplay() {
     Rectangle src = get_src(hero_id);
     float w = target_w / 8.0f;
     float x = target_w / 16.0f + w / 2;
-    if (pos.x + src.width > x) {
+    float x1 = target_w / 16.0f + 3 * w / 4;
+
+    if (pos.x + src.width > x1) {
         float time = (float)GetTime();
         int index = SH_INTENSE_RED_GLOW;
+        SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
+        BeginShaderMode(shaders[index]);
+
+    } else if (pos.x + src.width > x) {
+        float time = (float)GetTime();
+        int index = SH_RED_GLOW;
         SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
         BeginShaderMode(shaders[index]);
     }
 
     ClearBackground(BLUE);
-    //Color c = BLUE;
     x = target_w / 16.0f;
     float y = target_h / 16.0f;
     w = target_w / 8.0f;
     float h = target_h / 8.0f;
-    //DrawRectangle(x, y, w, h, c);
     src = {0, 0, 8, 8};
     y += 32;
     for (int j = 0; j < 4; j++) {
@@ -752,27 +761,18 @@ void draw_gameplay() {
         Vector2 pos = get_pos(id);
         if (pos.x < 0 || pos.y < 0) continue;
         entity_type type = get_type(id);
-        if (type == ENTITY_HERO) {
-            Rectangle src = get_src(id);
-            Rectangle dst = {pos.x, pos.y, src.width, src.height};
+        Rectangle src = get_src(id);
+        Rectangle dst = {pos.x, pos.y, src.width, src.height};
+        if (type == ENTITY_HERO)
             DrawTexturePro(txinfo[TX_HERO], src, dst, origin, 0.0f, WHITE);
-        } else if (type == ENTITY_SWORD) {
-            Rectangle src = get_src(id);
-            Rectangle dst = {pos.x, pos.y, src.width, src.height};
+        else if (type == ENTITY_SWORD)
             DrawTexturePro(txinfo[TX_SWORD], src, dst, origin, 0.0f, WHITE);
-        } else if (type == ENTITY_ORC) {
-            Rectangle src = get_src(id);
-            Rectangle dst = {pos.x, pos.y, src.width, src.height};
+        else if (type == ENTITY_ORC)
             DrawTexturePro(txinfo[TX_ORC], src, dst, origin, 0.0f, WHITE);
-        } else if (type == ENTITY_COIN) {
-            Rectangle src = get_src(id);
-            Rectangle dst = {pos.x, pos.y, src.width, src.height};
+        else if (type == ENTITY_COIN)
             DrawTexturePro(txinfo[TX_COIN], src, dst, origin, 0.0f, WHITE);
-        } else if (type == ENTITY_DWARF_MERCHANT) {
-            Rectangle src = get_src(id);
-            Rectangle dst = {pos.x, pos.y, src.width, src.height};
+        else if (type == ENTITY_DWARF_MERCHANT)
             DrawTexturePro(txinfo[TX_DWARF_MERCHANT], src, dst, origin, 0.0f, WHITE);
-        }
     }
     EndShaderMode();
 
@@ -781,7 +781,10 @@ void draw_gameplay() {
     w = target_w / 8.0f;
     h = target_h / 8.0f;
 
-    DrawLineEx((Vector2){x, y}, (Vector2){x, y + h}, 1.0f, (Color){0xff, 0xff, 0xff, 128});
+    DrawLineEx((Vector2){x, y}, (Vector2){x, y + h}, 1.0f, (Color){0xff, 0xff, 0xff, 96});
+
+    x = target_w / 16.0f + 3 * w / 4;
+    DrawLineEx((Vector2){x, y}, (Vector2){x, y + h}, 1.0f, (Color){0xff, 0xff, 0xff, 96});
 
     EndMode2D();
 }
