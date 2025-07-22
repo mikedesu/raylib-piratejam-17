@@ -100,8 +100,8 @@ int frame_count = 0;
 int frame_updates = 0;
 bool do_frame_update = false;
 int spawn_freq = 360;
-float base_orc_speed = -0.25f;
-float current_orc_speed = -0.25f;
+float base_orc_speed = -0.20f;
+float current_orc_speed = -0.20f;
 int random_orc_speed_mod_max = 2;
 
 int player_level = 1;
@@ -764,16 +764,18 @@ void draw_gameplay() {
         entity_type type = get_type(id);
         Rectangle src = get_src(id);
         Rectangle dst = {pos.x, pos.y, src.width, src.height};
-        if (type == ENTITY_HERO)
-            DrawTexturePro(txinfo[TX_HERO], src, dst, origin, 0.0f, WHITE);
-        else if (type == ENTITY_SWORD)
-            DrawTexturePro(txinfo[TX_SWORD], src, dst, origin, 0.0f, WHITE);
-        else if (type == ENTITY_ORC)
-            DrawTexturePro(txinfo[TX_ORC], src, dst, origin, 0.0f, WHITE);
-        else if (type == ENTITY_COIN)
-            DrawTexturePro(txinfo[TX_COIN], src, dst, origin, 0.0f, WHITE);
-        else if (type == ENTITY_DWARF_MERCHANT)
+        Color c = WHITE;
+        if (type == ENTITY_HERO) {
+            DrawTexturePro(txinfo[TX_HERO], src, dst, origin, 0.0f, c);
+        } else if (type == ENTITY_SWORD) {
+            DrawTexturePro(txinfo[TX_SWORD], src, dst, origin, 0.0f, c);
+        } else if (type == ENTITY_ORC) {
+            DrawTexturePro(txinfo[TX_ORC], src, dst, origin, 0.0f, c);
+        } else if (type == ENTITY_COIN) {
+            DrawTexturePro(txinfo[TX_COIN], src, dst, origin, 0.0f, c);
+        } else if (type == ENTITY_DWARF_MERCHANT) {
             DrawTexturePro(txinfo[TX_DWARF_MERCHANT], src, dst, origin, 0.0f, WHITE);
+        }
     }
     EndShaderMode();
 
