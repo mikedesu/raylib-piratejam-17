@@ -99,6 +99,7 @@ Texture2D txinfo[NUM_TEXTURES];
 bool gameover = false;
 int player_dir = 1;
 Sound sfx[NUM_SFX];
+Music music = {0};
 vector<entityid> cleanup;
 map<entityid, long> component_table;
 unordered_map<entityid, string> names;
@@ -871,12 +872,15 @@ void update_level_up() {
     if (levelup_flag) {
         player_level++;
         levelup_flag = false;
-        //spawn_freq = 120 - player_level * 10; // increase spawn frequency
-        //current_orc_speed = base_orc_speed - player_level * 0.05f; // increase orc speed
+        spawn_freq = 120 - player_level * 10; // increase spawn frequency
+        current_orc_speed = base_orc_speed - player_level * 0.05f; // increase orc speed
     }
 }
 
 void update_state() {
+    // update music stream
+    UpdateMusicStream(music);
+
     if (current_scene != SCENE_GAMEPLAY) return;
     // every N frames, create_orc
     if (frame_count % spawn_freq == 0) {
@@ -908,6 +912,16 @@ void init_sound() {
     load_soundfile(SFX_GET_HIT, "sfx/62_Get_hit_01.wav");
     load_soundfile(SFX_EQUIP, "sfx/061_Equip_01.wav");
     load_soundfile(SFX_COIN, "sfx/Coins.wav");
+
+
+    music = LoadMusicStream("music/music.mp3");
+    if (music.stream.buffer == NULL) {
+        fprintf(stderr, "Failed to load music: music/music.wav\n");
+        exit(EXIT_FAILURE);
+    }
+    // Set music volume
+    SetMusicVolume(music, 0.50f);
+    PlayMusicStream(music);
 }
 
 void unload_soundfile(int index) {
@@ -918,12 +932,8 @@ void unload_soundfile(int index) {
 }
 
 void unload_soundfiles() {
-    // stop playing music if it was still playing
-    for (int i = 0; i < 32; i++) {
-        if (sfx[i].stream.buffer != NULL) {
-            StopSound(sfx[i]);
-        }
-    }
+    // stop playing sfx if any was still playing
+    StopMusicStream(music);
     unload_soundfile(SFX_CONFIRM);
     unload_soundfile(SFX_HIT);
     unload_soundfile(SFX_GET_HIT);
