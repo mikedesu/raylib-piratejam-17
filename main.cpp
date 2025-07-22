@@ -37,6 +37,7 @@
 #define SFX_EQUIP 3
 #define SFX_COIN 4
 
+#define DEFAULT_SPAWN_FREQ 360
 
 using std::map;
 using std::string;
@@ -56,6 +57,7 @@ typedef enum {
     C_DESTROY,
     C_SRC,
     C_HP,
+    C_DURABILITY,
     C_COUNT
 } component;
 
@@ -100,7 +102,7 @@ Camera2D cam2d;
 int frame_count = 0;
 int frame_updates = 0;
 bool do_frame_update = false;
-int spawn_freq = 360;
+int spawn_freq = DEFAULT_SPAWN_FREQ;
 float base_orc_speed = -0.20f;
 float current_orc_speed = -0.20f;
 int random_orc_speed_mod_max = 2;
@@ -127,6 +129,7 @@ unordered_map<entityid, bool> collides;
 unordered_map<entityid, bool> destroy;
 unordered_map<entityid, Rectangle> sources;
 unordered_map<entityid, Vector2> hp;
+unordered_map<entityid, Vector2> durability;
 entityid next_entityid = 0;
 const entityid ENTITYID_INVALID = -1;
 entityid hero_id = ENTITYID_INVALID;
@@ -139,6 +142,8 @@ int coins_collected = 0;
 int coins_lost = 0;
 int hero_total_damage_received = 0;
 int continues = 0;
+float starting_sword_durability = 2.0f;
+float current_sword_durability = 2.0f;
 
 Shader shaders[NUM_SHADERS];
 
@@ -186,6 +191,7 @@ void cleanup_data() {
     destroy.clear();
     sources.clear();
     hp.clear();
+    durability.clear();
     // reset entity ids
     hero_id = ENTITYID_INVALID;
     sword_id = ENTITYID_INVALID;
@@ -203,6 +209,7 @@ void cleanup_data() {
     current_orc_speed = base_orc_speed;
     // reset game state
     gameover = false;
+    spawn_freq = DEFAULT_SPAWN_FREQ;
 }
 
 bool entity_exists(entityid id) {
@@ -403,6 +410,20 @@ Vector2 get_hp(entityid id) {
     return (Vector2){-1, -1}; // Return invalid hp if not found
 }
 
+bool set_durability(entityid id, Vector2 dura) {
+    if (!entity_exists(id)) return false;
+    set_comp(id, C_DURABILITY);
+    durability[id] = dura;
+    return true;
+}
+
+Vector2 get_durability(entityid id) {
+    if (!has_comp(id, C_DURABILITY)) return (Vector2){-1, -1};
+    auto it = durability.find(id);
+    if (it != durability.end()) return it->second;
+    return (Vector2){-1, -1}; // Return invalid durability if not found
+}
+
 bool create_player() {
     entityid id = add_entity();
     if (id == ENTITYID_INVALID) return false;
@@ -427,6 +448,7 @@ bool create_player() {
     return true;
 }
 
+
 bool create_sword() {
     entityid id = add_entity();
     if (id == ENTITYID_INVALID) return false;
@@ -438,6 +460,7 @@ bool create_sword() {
     set_hitbox(id, (Rectangle){-1, -1, -1, -1});
     set_collides(id, true);
     set_destroy(id, false);
+    set_durability(id, (Vector2){starting_sword_durability, starting_sword_durability});
     sword_id = id;
     return true;
 }
@@ -537,6 +560,7 @@ void handle_input_gameplay() {
     }
     if (IsKeyPressed(KEY_A)) {
         player_attacking = true;
+        set_durability(sword_id, (Vector2){current_sword_durability, current_sword_durability});
         PlaySound(sfx[SFX_EQUIP]);
     } else if (IsKeyUp(KEY_A)) {
         player_attacking = false;
@@ -567,6 +591,7 @@ void handle_input_gameover() {
         debug_txt_color = BLACK;
         PlaySound(sfx[SFX_CONFIRM]);
         cleanup_data(); // reset data for new game
+        continues++;
     }
 }
 
@@ -625,6 +650,11 @@ void draw_debug_panel() {
     DrawText(TextFormat("Continues: %d", continues), x, y, s, c);
     y += s;
     DrawText(TextFormat("spawn_freq: %d", spawn_freq), x, y, s, c);
+    y += s;
+
+    Vector2 dura = get_durability(sword_id);
+    DrawText(TextFormat("Durability: %0.1f/%0.1f", dura.x, dura.y), x, y, s, c);
+    y += s;
 }
 
 
@@ -770,8 +800,6 @@ void draw_gameplay() {
             int index = SH_HP_RED_GLOW;
             Vector2 myhp = get_hp(id);
             float hp_frac = myhp.x / myhp.y;
-            //float time = (float)GetTime();
-            //int index = SH_INTENSE_RED_GLOW;
             SetShaderValue(
                 shaders[index], GetShaderLocation(shaders[index], "hp_frac"), &hp_frac, SHADER_UNIFORM_FLOAT);
             BeginShaderMode(shaders[index]);
@@ -787,15 +815,11 @@ void draw_gameplay() {
             DrawTexturePro(txinfo[TX_DWARF_MERCHANT], src, dst, origin, 0.0f, WHITE);
         }
     }
-    //EndShaderMode();
-
     //x = target_w / 16.0f + w / 2;
     //y = target_h / 16.0f;
     //w = target_w / 8.0f;
     //h = target_h / 8.0f;
-
     //DrawLineEx((Vector2){x, y}, (Vector2){x, y + h}, 1.0f, (Color){0xff, 0xff, 0xff, 96});
-
     //x = target_w / 16.0f + 3 * w / 4;
     //DrawLineEx((Vector2){x, y}, (Vector2){x, y + h}, 1.0f, (Color){0xff, 0xff, 0xff, 96});
 
@@ -983,14 +1007,20 @@ void update_state_hero_collision() {
 void update_state_sword_collision() {
     // check for collision with sword
     Rectangle shb = get_hitbox(sword_id);
+    Vector2 dura = get_durability(sword_id);
     if (player_attacking) {
         for (auto row : component_table) {
             if (get_type(row.first) == ENTITY_ORC && CheckCollisionRecs(shb, get_hitbox(row.first))) {
                 sword_collision_counter++;
                 set_destroy(row.first, true);
-                player_attacking = false;
                 PlaySound(sfx[SFX_HIT]);
                 create_coin(row.first); // create a coin at the orc's position
+
+                dura.x--;
+                if (dura.x <= 0) {
+                    player_attacking = false;
+                }
+                set_durability(sword_id, dura);
             }
         }
     }
