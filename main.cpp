@@ -80,12 +80,17 @@ float default_zoom = 8;
 game_scene current_scene = SCENE_COMPANY;
 Color debug_txt_color = WHITE;
 RenderTexture target_texture;
+RenderTexture company_texture;
+RenderTexture title_texture;
+RenderTexture gameover_texture;
 Rectangle target_src;
 Rectangle target_dst;
 Rectangle window_dst;
 const Vector2 origin = {0, 0};
 Camera2D cam2d;
 int frame_count = 0;
+int frame_updates = 0;
+bool do_frame_update = false;
 int spawn_freq = 120;
 float base_orc_speed = -0.25f;
 float current_orc_speed = -0.25f;
@@ -505,6 +510,13 @@ void handle_input_gameover() {
 }
 
 void handle_input() {
+
+    // take screenshot
+    if (IsKeyPressed(KEY_F12)) {
+        TakeScreenshot(TextFormat("screenshot_%d.png", frame_count));
+        PlaySound(sfx[SFX_CONFIRM]);
+    }
+
     if (current_scene == SCENE_COMPANY)
         handle_input_company();
     else if (current_scene == SCENE_TITLE)
@@ -549,18 +561,49 @@ void draw_debug_panel() {
     y += s;
 }
 
-void draw_company() {
+
+void draw_company_to_texture() {
+    BeginDrawing();
+    BeginTextureMode(company_texture);
     ClearBackground(BLACK);
-    int s = 20;
-    const char* text = "evildojo666";
+    int s = 40;
+    const char* text = "@evildojo666";
     int m = MeasureText(text, s);
     int x = target_w / 2 - m / 2;
     int y = target_h / 2 - s;
     Color c = {0x66, 0x66, 0x66, 255};
     DrawText(text, x, y, s, c);
+    // below the text, draw another text in smaller font
+    s = 30;
+    text = "presents...";
+    m = MeasureText(text, s);
+    x = target_w / 2 - m / 2;
+    y += s + 10; // move down by s + 10 pixels
+    //c = {0x99, 0x99, 0x99, 255};
+    DrawText(text, x, y, s, c);
+    // below the text, draw another text in smaller font
+    s = 10;
+    text = "Press ENTER to continue";
+    m = MeasureText(text, s);
+    x = target_w / 2 - m / 2;
+    y += 40; // move down by s + 10 pixels
+
+    //c = {0x99, 0x99, 0x99, 255};
+    DrawText(text, x, y, s, c);
+    EndTextureMode();
+    EndDrawing();
+
+    frame_updates++;
 }
 
-void draw_title() {
+
+void draw_company() {
+    DrawTexturePro(company_texture.texture, target_src, target_dst, origin, 0.0f, WHITE);
+}
+
+void draw_title_to_texture() {
+    BeginDrawing();
+    BeginTextureMode(title_texture);
     Color bg = WHITE;
     ClearBackground(bg);
     int s = 50;
@@ -581,9 +624,19 @@ void draw_title() {
     DrawTexturePro(txinfo[TX_SWORD_UP], src, dst, origin, 0.0f, WHITE);
     Color fg = BLACK;
     DrawText(text, x, y, s, fg);
+    EndTextureMode();
+    EndDrawing();
+
+    frame_updates++;
 }
 
-void draw_gameover() {
+void draw_title() {
+    DrawTexturePro(title_texture.texture, target_src, target_dst, origin, 0.0f, WHITE);
+}
+
+void draw_gameover_to_texture() {
+    BeginDrawing();
+    BeginTextureMode(gameover_texture);
     ClearBackground(BLACK);
     int s = 20;
     const char* text = "gameover";
@@ -592,6 +645,14 @@ void draw_gameover() {
     int y = target_h / 2 - s;
     Color c = {0xFF, 0, 0, 255};
     DrawText(text, x, y, s, c);
+    EndTextureMode();
+    EndDrawing();
+
+    frame_updates++;
+}
+
+void draw_gameover() {
+    DrawTexturePro(gameover_texture.texture, target_src, target_dst, origin, 0.0f, WHITE);
 }
 
 void draw_gameplay() {
@@ -646,10 +707,21 @@ void draw_gameplay() {
             DrawTexturePro(txinfo[TX_COIN], src, dst, origin, 0.0f, WHITE);
         }
     }
+
+    x = target_w / 16.0f;
+    y = target_h / 16.0f;
+    w = target_w / 8.0f;
+    h = target_h / 8.0f;
+
+    DrawLineEx((Vector2){x + w / 2, y}, (Vector2){x + w / 2, y + h}, 1.0f, (Color){0x66, 0x66, 0x66, 255});
+
+
     EndMode2D();
 }
 
 void draw_frame() {
+
+    // update music stream
     if (IsWindowResized()) {
         window_dst.width = GetScreenWidth();
         window_dst.height = GetScreenHeight();
@@ -705,25 +777,20 @@ void load_textures() {
     load_texture(TX_SWORD_UP, "sword-up.png");
     load_texture(TX_WILD_ORC, "wild-orc.png");
     load_texture(TX_DWARF_MERCHANT, "dwarf-merchant.png");
+
+    draw_company_to_texture();
+    draw_title_to_texture();
+    draw_gameover_to_texture();
 }
 
 void unload_textures() {
-    //UnloadTexture(txinfo[TX_HERO]);
-    //UnloadTexture(txinfo[TX_SWORD]);
-    //UnloadTexture(txinfo[TX_ORC]);
-    //UnloadTexture(txinfo[TX_GRASS_00]);
-    //UnloadTexture(txinfo[TX_GRASS_01]);
-    //UnloadTexture(txinfo[TX_GRASS_02]);
-    //UnloadTexture(txinfo[TX_GRASS_03]);
-    //UnloadTexture(txinfo[TX_COIN]);
-    //UnloadTexture(txinfo[TX_SWORD_UP]);
-    //UnloadTexture(txinfo[TX_WILD_ORC]);
-    //UnloadTexture(txinfo[TX_DWARF_MERCHANT]);
-
-
     for (int i = TX_HERO; i < TX_COUNT; i++) {
         UnloadTexture(txinfo[i]);
     }
+    UnloadRenderTexture(target_texture);
+    UnloadRenderTexture(company_texture);
+    UnloadRenderTexture(title_texture);
+    UnloadRenderTexture(gameover_texture);
 }
 
 void init_gfx() {
@@ -732,6 +799,9 @@ void init_gfx() {
     SetWindowMinSize(window_size_min_w, window_size_min_h);
     SetTargetFPS(target_fps);
     target_texture = LoadRenderTexture(target_w, target_h);
+    company_texture = LoadRenderTexture(target_w, target_h);
+    title_texture = LoadRenderTexture(target_w, target_h);
+    gameover_texture = LoadRenderTexture(target_w, target_h);
     target_src = {0, 0, 1.0f * target_w, -1.0f * target_h};
     target_dst = {0, 0, 1.0f * target_w, 1.0f * target_h};
     window_dst.x = window_dst.y = 0;
@@ -878,8 +948,6 @@ void update_level_up() {
 }
 
 void update_state() {
-    // update music stream
-    UpdateMusicStream(music);
 
     if (current_scene != SCENE_GAMEPLAY) return;
     // every N frames, create_orc
@@ -913,14 +981,12 @@ void init_sound() {
     load_soundfile(SFX_EQUIP, "sfx/061_Equip_01.wav");
     load_soundfile(SFX_COIN, "sfx/Coins.wav");
 
-
     music = LoadMusicStream("music/music.mp3");
     if (music.stream.buffer == NULL) {
         fprintf(stderr, "Failed to load music: music/music.wav\n");
         exit(EXIT_FAILURE);
     }
     // Set music volume
-    SetMusicVolume(music, 0.50f);
     PlayMusicStream(music);
 }
 
@@ -945,13 +1011,15 @@ int main() {
     init_gfx();
     init_sound();
     while (!WindowShouldClose()) {
+        //UpdateMusicStream(music);
         handle_input();
+        //UpdateMusicStream(music);
         update_state();
+        UpdateMusicStream(music);
         draw_frame();
     }
     unload_textures();
     unload_soundfiles();
-    UnloadRenderTexture(target_texture);
     CloseAudioDevice();
     CloseWindow();
     return 0;
