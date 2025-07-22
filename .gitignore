@@ -6,3 +6,4 @@ sfx/*
 *.wav
 music
 *.png
+.aider*
