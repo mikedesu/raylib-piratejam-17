@@ -491,7 +491,7 @@ bool create_orc() {
     float w = txinfo[0].width * 1.0f;
     float h = txinfo[0].height * 1.0f;
     // Select a random x,yf appropriate to the scene
-    Vector2 p = {200, 57};
+    Vector2 p = {150, 57};
     int random_y = 0;
     random_y = GetRandomValue(-1, 1);
     p.y += random_y * h;
@@ -615,14 +615,19 @@ void handle_input_merchant() {
     if (IsKeyPressed(KEY_ENTER)) {
 
         // we have to handle what happens on purchasing an item
-        // in the beginning, we will just default to incrementing
-        // the sword's durability
-        //Vector2 dura = get_durability(sword_id);
-        //set_durability(sword_id, dura);
-        current_sword_durability++;
 
+        if (merchant_items[merchant_item_selection] == ITEM_SWORD) {
+            current_sword_durability++;
+        } else if (merchant_items[merchant_item_selection] == ITEM_BOOTS) {
+            Vector2 velo = get_velocity(hero_id);
+            velo.x += 0.25f;
+            velo.y += 0.25f;
+            set_velocity(hero_id, velo);
+        }
+
+        //levelup_flag = true;
         current_coins -= base_coin_level_up_amount;
-
+        coins_spent += base_coin_level_up_amount;
         current_scene = SCENE_GAMEPLAY;
         PlaySound(sfx[SFX_CONFIRM]);
 
@@ -842,16 +847,28 @@ void draw_merchant() {
 
     int txkey = TX_SWORD_UP;
     Rectangle src1 = {0, 0, (float)txinfo[txkey].width, (float)txinfo[txkey].height};
-    dst1.width = src1.width * scale;
-    dst2.width = src1.width * scale;
-    dst3.width = src1.width * scale;
+    //dst1.width = src1.width * scale;
+    //dst2.width = src1.width * scale;
+    //dst3.width = src1.width * scale;
 
     int index = SH_BLUE_GLOW;
     float time = (float)GetTime();
 
     Rectangle dsts[MERCHANT_ITEM_SELECTION_MAX] = {dst1, dst2, dst3};
+    dsts[0].width = src1.width * scale;
+    dsts[1].width = src1.width * scale;
+    dsts[2].width = src1.width * scale;
+
 
     for (int i = 0; i < MERCHANT_ITEM_SELECTION_MAX; i++) {
+        if (merchant_items[i] == ITEM_SWORD) {
+            txkey = TX_SWORD_UP;
+        } else if (merchant_items[i] == ITEM_BOOTS) {
+            txkey = TX_BOOTS;
+        }
+        src1 = {0, 0, (float)txinfo[txkey].width, (float)txinfo[txkey].height};
+        dsts[i].width = src1.width * scale;
+
         if (merchant_item_selection == i) {
             DrawRectangleLinesEx(dsts[i], 2.0f, BLUE);
             SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
@@ -896,13 +913,13 @@ void draw_merchant() {
 
     float pad = 10.0f;
     float y2 = y1 + h1 + pad;
-    dst1 = {x1, y2, w1, h1};
-    dst2 = {x2, y2, w1, h1};
-    dst3 = {x3, y2, w1, h1};
+    dsts[0] = {x1, y2, w1, h1};
+    dsts[1] = {x2, y2, w1, h1};
+    dsts[2] = {x3, y2, w1, h1};
 
-    DrawText("Sword", dst1.x, dst1.y, 20, WHITE);
-    DrawText("Sword", dst2.x, dst1.y, 20, WHITE);
-    DrawText("Sword", dst3.x, dst1.y, 20, WHITE);
+    DrawText("Sword", dsts[0].x, dsts[0].y, 20, WHITE);
+    DrawText("Sword", dsts[1].x, dsts[0].y, 20, WHITE);
+    DrawText("Boots", dsts[2].x, dsts[0].y, 20, WHITE);
 }
 
 void draw_gameplay() {
@@ -1039,6 +1056,7 @@ void load_textures() {
     load_texture(TX_SWORD_UP, "sword-up.png");
     load_texture(TX_WILD_ORC, "wild-orc.png");
     load_texture(TX_DWARF_MERCHANT, "dwarf-merchant.png");
+    load_texture(TX_BOOTS, "boots.png");
 
     draw_company_to_texture();
     draw_title_to_texture();
