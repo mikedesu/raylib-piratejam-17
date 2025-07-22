@@ -99,7 +99,7 @@ Camera2D cam2d;
 int frame_count = 0;
 int frame_updates = 0;
 bool do_frame_update = false;
-int spawn_freq = 120;
+int spawn_freq = 360;
 float base_orc_speed = -0.25f;
 float current_orc_speed = -0.25f;
 int random_orc_speed_mod_max = 2;
@@ -1038,6 +1038,7 @@ void update_state() {
     if (current_scene != SCENE_GAMEPLAY) return;
     // every N frames, create_orc
     if (frame_count % spawn_freq == 0) {
+        create_orc();
         create_orc();
     }
 
