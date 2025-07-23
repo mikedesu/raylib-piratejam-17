@@ -93,7 +93,10 @@ int target_h = 480;
 int window_size_min_w = 320;
 int window_size_min_h = 240;
 int target_fps = 60;
+
 float default_zoom = 8;
+//float default_zoom = 4;
+
 game_scene current_scene = SCENE_COMPANY;
 Color debug_txt_color = WHITE;
 RenderTexture target_texture;
@@ -151,8 +154,8 @@ int coins_collected = 0;
 int coins_lost = 0;
 int hero_total_damage_received = 0;
 int continues = 0;
-float starting_sword_durability = 2.0f;
-float current_sword_durability = 2.0f;
+float starting_sword_durability = 1.0f;
+float current_sword_durability = 1.0f;
 
 item_type merchant_items[MERCHANT_ITEM_SELECTION_MAX] = {ITEM_SWORD, ITEM_SWORD, ITEM_BOOTS};
 
@@ -917,9 +920,9 @@ void draw_merchant() {
     dsts[1] = {x2, y2, w1, h1};
     dsts[2] = {x3, y2, w1, h1};
 
-    DrawText("Sword", dsts[0].x, dsts[0].y, 20, WHITE);
-    DrawText("Sword", dsts[1].x, dsts[0].y, 20, WHITE);
-    DrawText("Boots", dsts[2].x, dsts[0].y, 20, WHITE);
+    DrawText("Durability", dsts[0].x, dsts[0].y, 20, WHITE);
+    DrawText("Durability", dsts[1].x, dsts[0].y, 20, WHITE);
+    DrawText("Speed", dsts[2].x, dsts[0].y, 20, WHITE);
 }
 
 void draw_gameplay() {
@@ -1245,7 +1248,11 @@ void update_level_up() {
     if (levelup_flag) {
         player_level++;
         levelup_flag = false;
-        spawn_freq -= player_level * 10; // increase spawn frequency
+        spawn_freq -= 30; // increase spawn frequency
+        if (spawn_freq < 30) {
+            spawn_freq = 30;
+        }
+
         //current_orc_speed = base_orc_speed - player_level * 0.05f; // increase orc speed
     }
 
