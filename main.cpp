@@ -570,9 +570,9 @@ bool create_health_replenish(entityid id) {
     set_type(heart_id, ENTITY_HEALTH_REPLENISH);
     Vector2 pos = get_pos(id);
     set_pos(heart_id, pos);
-    Rectangle src = {0, 0, 4, 6};
+    Rectangle src = {0, 0, 7, 7};
     set_src(heart_id, src);
-    Rectangle hitbox = {pos.x, pos.y, 4, 6};
+    Rectangle hitbox = {pos.x, pos.y, src.width, src.height};
     set_hitbox(heart_id, hitbox);
     set_collides(heart_id, true);
     set_destroy(heart_id, false);
