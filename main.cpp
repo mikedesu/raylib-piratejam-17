@@ -39,7 +39,7 @@
 #define SFX_EQUIP 3
 #define SFX_COIN 4
 
-#define DEFAULT_SPAWN_FREQ 360
+#define DEFAULT_SPAWN_FREQ 300
 
 #define MERCHANT_ITEM_SELECTION_MAX 3
 
@@ -148,6 +148,7 @@ bool player_attacking = false;
 int hero_collision_counter = 0;
 int sword_collision_counter = 0;
 int entities_destroyed = 0;
+int enemies_killed = 0;
 int current_coins = 0;
 int coins_spent = 0;
 int coins_collected = 0;
@@ -714,6 +715,9 @@ void draw_debug_panel() {
     Vector2 dura = get_durability(sword_id);
     DrawText(TextFormat("Durability: %0.1f/%0.1f", dura.x, dura.y), x, y, s, c);
     y += s;
+
+    DrawText(TextFormat("Enemies killed: %d", enemies_killed), x, y, s, c);
+    //y += s;
 }
 
 
@@ -1167,6 +1171,7 @@ void update_state_hero_collision() {
             hero_total_damage_received++;
             set_destroy(row.first, true);
             damage_hero(1);
+            enemies_killed++;
             PlaySound(sfx[SFX_GET_HIT]);
         } else if (t == ENTITY_COIN && CheckCollisionRecs(hb, get_hitbox(row.first))) {
             hero_collision_counter++;
@@ -1197,6 +1202,7 @@ void update_state_sword_collision() {
                 PlaySound(sfx[SFX_HIT]);
                 create_coin(row.first); // create a coin at the orc's position
 
+                enemies_killed++;
                 dura.x--;
                 if (dura.x <= 0) {
                     player_attacking = false;
@@ -1249,8 +1255,8 @@ void update_level_up() {
         player_level++;
         levelup_flag = false;
         spawn_freq -= 30; // increase spawn frequency
-        if (spawn_freq < 30) {
-            spawn_freq = 30;
+        if (spawn_freq < 60) {
+            spawn_freq = 60;
         }
 
         //current_orc_speed = base_orc_speed - player_level * 0.05f; // increase orc speed
