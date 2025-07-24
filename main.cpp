@@ -31,7 +31,9 @@
 #define TX_WILD_ORC 9
 #define TX_DWARF_MERCHANT 10
 #define TX_BOOTS 11
-#define TX_COUNT 12
+#define TX_HEALTH_REPLENISH 12
+#define TX_HEALTH_EXPANSION 13
+#define TX_COUNT 14
 
 #define SFX_CONFIRM 0
 #define SFX_HIT 1
@@ -72,10 +74,11 @@ typedef enum {
     ENTITY_ORC,
     ENTITY_COIN,
     ENTITY_DWARF_MERCHANT,
+    ENTITY_HEALTH_REPLENISH,
     ENTITY_COUNT
 } entity_type;
 
-typedef enum { ITEM_SWORD, ITEM_BOOTS, ITEM_COUNT } item_type;
+typedef enum { ITEM_SWORD, ITEM_BOOTS, ITEM_HEALTH_REPLENISH, ITEM_HEALTH_EXPANSION, ITEM_COUNT } item_type;
 
 typedef enum { SCENE_COMPANY, SCENE_TITLE, SCENE_GAMEPLAY, SCENE_GAMEOVER, SCENE_MERCHANT, SCENE_COUNT } game_scene;
 
@@ -83,6 +86,7 @@ bool create_player();
 bool create_orc();
 bool create_sword();
 bool create_coin(entityid id);
+bool create_health_replenish(entityid id);
 bool create_dwarf_merchant();
 
 const char* game_window_title = "evildojo666 presents: There can be...";
@@ -149,6 +153,7 @@ int hero_collision_counter = 0;
 int sword_collision_counter = 0;
 int entities_destroyed = 0;
 int enemies_killed = 0;
+int total_enemies_killed = 0;
 int current_coins = 0;
 int coins_spent = 0;
 int coins_collected = 0;
@@ -158,7 +163,7 @@ int continues = 0;
 float starting_sword_durability = 1.0f;
 float current_sword_durability = 1.0f;
 
-item_type merchant_items[MERCHANT_ITEM_SELECTION_MAX] = {ITEM_SWORD, ITEM_SWORD, ITEM_BOOTS};
+item_type merchant_items[MERCHANT_ITEM_SELECTION_MAX] = {ITEM_SWORD, ITEM_HEALTH_EXPANSION, ITEM_BOOTS};
 
 
 Shader shaders[NUM_SHADERS];
@@ -230,6 +235,7 @@ void cleanup_data() {
     gameover = false;
     spawn_freq = DEFAULT_SPAWN_FREQ;
     current_sword_durability = starting_sword_durability;
+    enemies_killed = 0;
 }
 
 bool entity_exists(entityid id) {
@@ -555,6 +561,26 @@ bool create_coin(entityid id) {
     return true;
 }
 
+bool create_health_replenish(entityid id) {
+    // spawm a health replenish at the location of id
+    if (!entity_exists(id)) return false;
+    entityid heart_id = add_entity();
+    if (heart_id == ENTITYID_INVALID) return false;
+    set_name(heart_id, "heart");
+    set_type(heart_id, ENTITY_HEALTH_REPLENISH);
+    Vector2 pos = get_pos(id);
+    set_pos(heart_id, pos);
+    Rectangle src = {0, 0, 4, 6};
+    set_src(heart_id, src);
+    Rectangle hitbox = {pos.x, pos.y, 4, 6};
+    set_hitbox(heart_id, hitbox);
+    set_collides(heart_id, true);
+    set_destroy(heart_id, false);
+    set_velocity(heart_id, (Vector2){-0.1f, 0});
+    set_pos(heart_id, pos);
+    return true;
+}
+
 void handle_input_gameplay() {
     Vector2 velocity = get_velocity(hero_id);
     float vx = velocity.x; // use the x component for movement speed
@@ -627,9 +653,12 @@ void handle_input_merchant() {
             velo.x += 0.25f;
             velo.y += 0.25f;
             set_velocity(hero_id, velo);
+        } else if (merchant_items[merchant_item_selection] == ITEM_HEALTH_EXPANSION) {
+            Vector2 myhp = get_hp(hero_id);
+            myhp.y++;
+            myhp.x = myhp.y;
+            set_hp(hero_id, myhp);
         }
-
-        //levelup_flag = true;
         current_coins -= base_coin_level_up_amount;
         coins_spent += base_coin_level_up_amount;
         current_scene = SCENE_GAMEPLAY;
@@ -716,8 +745,10 @@ void draw_debug_panel() {
     DrawText(TextFormat("Durability: %0.1f/%0.1f", dura.x, dura.y), x, y, s, c);
     y += s;
 
-    DrawText(TextFormat("Enemies killed: %d", enemies_killed), x, y, s, c);
-    //y += s;
+    DrawText(TextFormat("Enemies killed this game: %d", enemies_killed), x, y, s, c);
+    y += s;
+    DrawText(TextFormat("Total enemies killed: %d", total_enemies_killed), x, y, s, c);
+    y += s;
 }
 
 
@@ -872,6 +903,10 @@ void draw_merchant() {
             txkey = TX_SWORD_UP;
         } else if (merchant_items[i] == ITEM_BOOTS) {
             txkey = TX_BOOTS;
+            //} else if (merchant_items[i] == ITEM_HEALTH_REPLENISH) {
+            //    txkey = TX_HEALTH_REPLENISH;
+        } else if (merchant_items[i] == ITEM_HEALTH_EXPANSION) {
+            txkey = TX_HEALTH_EXPANSION;
         }
         src1 = {0, 0, (float)txinfo[txkey].width, (float)txinfo[txkey].height};
         dsts[i].width = src1.width * scale;
@@ -887,45 +922,13 @@ void draw_merchant() {
         }
     }
 
-    //if (merchant_item_selection == 0) {
-    //    DrawRectangleLinesEx(dsts[0], 2.0f, BLUE);
-    //    SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
-    //    BeginShaderMode(shaders[index]);
-    //}
-    //DrawTexturePro(txinfo[txkey], src1, dsts[0], origin, 0.0f, WHITE);
-    //if (merchant_item_selection == 0) {
-    //    EndShaderMode();
-    //}
-
-    //if (merchant_item_selection == 1) {
-    //    DrawRectangleLinesEx(dsts[1], 2.0f, BLUE);
-    //    SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
-    //    BeginShaderMode(shaders[index]);
-    //}
-    //DrawTexturePro(txinfo[txkey], src1, dsts[1], origin, 0.0f, WHITE);
-    //if (merchant_item_selection == 1) {
-    //    EndShaderMode();
-    //}
-
-    //if (merchant_item_selection == 2) {
-    //    DrawRectangleLinesEx(dsts[2], 2.0f, BLUE);
-    //    SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
-    //    BeginShaderMode(shaders[index]);
-    //}
-    //DrawTexturePro(txinfo[txkey], src1, dsts[2], origin, 0.0f, WHITE);
-    //if (merchant_item_selection == 2) {
-    //    EndShaderMode();
-    //}
-
-
-    float pad = 10.0f;
-    float y2 = y1 + h1 + pad;
+    float y2 = y1 + h1 + 10.0f;
     dsts[0] = {x1, y2, w1, h1};
     dsts[1] = {x2, y2, w1, h1};
     dsts[2] = {x3, y2, w1, h1};
 
     DrawText("Durability", dsts[0].x, dsts[0].y, 20, WHITE);
-    DrawText("Durability", dsts[1].x, dsts[0].y, 20, WHITE);
+    DrawText("HP Up", dsts[1].x, dsts[0].y, 20, WHITE);
     DrawText("Speed", dsts[2].x, dsts[0].y, 20, WHITE);
 }
 
@@ -991,6 +994,8 @@ void draw_gameplay() {
             DrawTexturePro(txinfo[TX_COIN], src, dst, origin, 0.0f, c);
         } else if (type == ENTITY_DWARF_MERCHANT) {
             DrawTexturePro(txinfo[TX_DWARF_MERCHANT], src, dst, origin, 0.0f, WHITE);
+        } else if (type == ENTITY_HEALTH_REPLENISH) {
+            DrawTexturePro(txinfo[TX_HEALTH_REPLENISH], src, dst, origin, 0.0f, WHITE);
         }
     }
     //x = target_w / 16.0f + w / 2;
@@ -1064,6 +1069,8 @@ void load_textures() {
     load_texture(TX_WILD_ORC, "wild-orc.png");
     load_texture(TX_DWARF_MERCHANT, "dwarf-merchant.png");
     load_texture(TX_BOOTS, "boots.png");
+    load_texture(TX_HEALTH_REPLENISH, "heart-replenish.png");
+    load_texture(TX_HEALTH_EXPANSION, "heart-expansion.png");
 
     draw_company_to_texture();
     draw_title_to_texture();
@@ -1172,11 +1179,11 @@ void update_state_hero_collision() {
             set_destroy(row.first, true);
             damage_hero(1);
             enemies_killed++;
+            total_enemies_killed++;
             PlaySound(sfx[SFX_GET_HIT]);
         } else if (t == ENTITY_COIN && CheckCollisionRecs(hb, get_hitbox(row.first))) {
             hero_collision_counter++;
             set_destroy(row.first, true);
-            // play a sound effect
             PlaySound(sfx[SFX_COIN]);
             coins_collected++;
             current_coins++;
@@ -1186,6 +1193,36 @@ void update_state_hero_collision() {
             PlaySound(sfx[SFX_EQUIP]);
 
             current_scene = SCENE_MERCHANT;
+        } else if (t == ENTITY_HEALTH_REPLENISH && CheckCollisionRecs(hb, get_hitbox(row.first))) {
+            hero_collision_counter++;
+            set_destroy(row.first, true);
+            PlaySound(sfx[SFX_CONFIRM]);
+
+            Vector2 myhp = get_hp(hero_id);
+            myhp.x++;
+            if (myhp.x > myhp.y) {
+                myhp.x = myhp.y;
+            }
+            set_hp(hero_id, myhp);
+        }
+    }
+}
+
+bool hero_health_maxed() {
+    Vector2 myhp = get_hp(hero_id);
+    return myhp.x == myhp.y;
+}
+
+void spawn_drop(entityid id) {
+    if (hero_health_maxed()) {
+        create_coin(id); // create a coin at the orc's position
+    } else {
+        // 50-50 chance of heart or coin
+        int r = GetRandomValue(0, 1);
+        if (r) {
+            create_coin(id);
+        } else {
+            create_health_replenish(id);
         }
     }
 }
@@ -1200,9 +1237,10 @@ void update_state_sword_collision() {
                 sword_collision_counter++;
                 set_destroy(row.first, true);
                 PlaySound(sfx[SFX_HIT]);
-                create_coin(row.first); // create a coin at the orc's position
+                spawn_drop(row.first); // create a coin at the orc's position
 
                 enemies_killed++;
+                total_enemies_killed++;
                 dura.x--;
                 if (dura.x <= 0) {
                     player_attacking = false;
