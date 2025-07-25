@@ -7,7 +7,10 @@
 #include <raylib.h>
 #include <raymath.h>
 
-#define SPAWN_X 150
+#define SPAWN_X_RIGHT 150
+#define SPAWN_X_LEFT 42
+
+
 #define HERO_VELO_X_DEFAULT 0.25f
 #define HERO_VELO_Y_DEFAULT 0.25f
 #define BASE_ORC_SPEED -0.20f
@@ -598,8 +601,19 @@ bool create_orc() {
     set_src(id, src);
     float w = txinfo[0].width * 1.0f;
     float h = txinfo[0].height * 1.0f;
-    // Select a random x,yf appropriate to the scene
-    Vector2 p = {SPAWN_X, 57};
+    // Select a random x,y appropriate to the scene based on randomly-chosen direction to start
+    int side = GetRandomValue(0, 1);
+    if (side == 0) {
+        side = -1;
+    }
+
+    float xpos = SPAWN_X_RIGHT;
+    if (side == -1) {
+        xpos = SPAWN_X_LEFT;
+    }
+
+    Vector2 p = {xpos, 57};
+
     int random_y = 0;
     random_y = GetRandomValue(-1, 1);
     p.y += random_y * h;
@@ -608,7 +622,7 @@ bool create_orc() {
     set_hitbox(id, hitbox);
     // Set a random velocity to the orc
     set_velocity(id,
-                 (Vector2){current_orc_speed *
+                 (Vector2){side * current_orc_speed *
                                GetRandomValue(1, random_orc_speed_mod_max),
                            0});
     set_collides(id, true);
@@ -628,7 +642,7 @@ bool create_dwarf_merchant() {
     float w = txinfo[0].width * 1.0f;
     float h = txinfo[0].height * 1.0f;
     // Select a random x,yf appropriate to the scene
-    Vector2 p = {SPAWN_X, 57};
+    Vector2 p = {SPAWN_X_RIGHT, 57};
     int random_y = 0;
     random_y = GetRandomValue(-1, 1);
     p.y += random_y * h;
@@ -691,42 +705,56 @@ void handle_input_gameplay() {
         update_x_pos(hero_id, -vx);
         update_hitbox_x(hero_id, -vx);
 
-        Vector2 dir = get_dir(hero_id);
-        dir.x = -1;
-        dir.y = 0;
-        set_dir(hero_id, dir);
-        set_dir(sword_id, dir);
+        Vector2 d = get_dir(hero_id);
+        d.x = -1;
+        set_dir(hero_id, d);
+        set_dir(sword_id, d);
     }
+
     if (IsKeyDown(KEY_RIGHT)) {
         update_x_pos(hero_id, vx);
         update_hitbox_x(hero_id, vx);
-
-        Vector2 dir = get_dir(hero_id);
-        dir.x = 1;
-        dir.y = 0;
-        set_dir(hero_id, dir);
-        set_dir(sword_id, dir);
+        Vector2 d = get_dir(hero_id);
+        d.x = 1;
+        set_dir(hero_id, d);
+        set_dir(sword_id, d);
     }
+
     if (IsKeyDown(KEY_UP)) {
         update_y_pos(hero_id, -vy);
         update_hitbox_y(hero_id, -vy);
-
-        Vector2 dir = get_dir(hero_id);
-        dir.x = 0;
-        dir.y = -1;
-        set_dir(hero_id, dir);
-        set_dir(sword_id, dir);
+        Vector2 d = get_dir(hero_id);
+        d.y = -1;
+        set_dir(hero_id, d);
+        set_dir(sword_id, d);
+    } else if (IsKeyUp(KEY_UP)) {
+        Vector2 d = get_dir(hero_id);
+        d.y = 0;
+        set_dir(hero_id, d);
+        set_dir(sword_id, d);
     }
+
     if (IsKeyDown(KEY_DOWN)) {
         update_y_pos(hero_id, vy);
         update_hitbox_y(hero_id, vy);
-
-        Vector2 dir = get_dir(hero_id);
-        dir.x = 0;
-        dir.y = 1;
-        set_dir(hero_id, dir);
-        set_dir(sword_id, dir);
+        Vector2 d = get_dir(hero_id);
+        d.y = 1;
+        set_dir(hero_id, d);
+        set_dir(sword_id, d);
+    } else if (IsKeyUp(KEY_UP)) {
+        Vector2 d = get_dir(hero_id);
+        d.y = 0;
+        set_dir(hero_id, d);
+        set_dir(sword_id, d);
     }
+    //else if (IsKeyUp(KEY_DOWN)) {
+    //    Vector2 dir = get_dir(hero_id);
+    //    dir.y = 0;
+    //    set_dir(hero_id, dir);
+    //    set_dir(sword_id, dir);
+    //}
+
+
     if (IsKeyPressed(KEY_A)) {
         player_attacking = true;
         set_durability(
@@ -1151,9 +1179,26 @@ void draw_gameplay() {
             DrawTexturePro(txinfo[TX_HERO], src, dst, origin, 0.0f, c);
             EndShaderMode();
         } else if (type == ENTITY_SWORD) {
-            src.width *= get_dir(sword_id).x;
+            //src.width = txinfo[TX_SWORD_UP].width;
+            //src.height = txinfo[TX_SWORD_UP].height;
+            //dst = {pos.x, pos.y, src.width, src.height};
+
+            Vector2 mydir = get_dir(sword_id);
+            int txindex = TX_SWORD;
+            //if (mydir.y == -1) {
+            //    txindex = TX_SWORD_UP;
+            //    src.width = txinfo[txindex].width;
+            //    src.height = txinfo[txindex].height;
+            //    Vector2 spos = get_pos(sword_id);
+            //    dst = {spos.x, spos.y, src.width, src.height};
+            //}
+            //else
+            if (mydir.x != 0) {
+                src.width *= mydir.x;
+            }
             dst.width *= get_size(sword_id);
             dst.height *= get_size(sword_id);
+
             int index = SH_DURABILITY_BLACK;
             Vector2 dura = get_durability(id);
             float d_frac = dura.x / dura.y;
@@ -1163,7 +1208,7 @@ void draw_gameplay() {
                 &d_frac,
                 SHADER_UNIFORM_FLOAT);
             BeginShaderMode(shaders[index]);
-            DrawTexturePro(txinfo[TX_SWORD], src, dst, origin, 0.0f, c);
+            DrawTexturePro(txinfo[txindex], src, dst, origin, 0.0f, c);
             EndShaderMode();
         } else if (type == ENTITY_ORC) {
             DrawTexturePro(txinfo[TX_ORC], src, dst, origin, 0.0f, c);
@@ -1294,23 +1339,29 @@ void update_state_player_attack() {
         Rectangle hb = get_hitbox(hero_id);
         Vector2 dir = get_dir(hero_id);
         float sz = get_size(sword_id);
-        float w = 8 * sz;
-        float h = 3 * sz;
+        float w = txinfo[TX_SWORD].width * sz;
+        float h = txinfo[TX_SWORD].height * sz;
+
         hb.y = hb.y + hb.height / 2.0f - 2;
-        Vector2 spos = {-1, hb.y};
+
         if (dir.x == 1) {
+            Vector2 spos = {-1, hb.y};
             hb.x = hb.x + hb.width;
             spos.x = hb.x;
             hb = {hb.x, hb.y + 1, w, h};
             set_hitbox(sword_id, hb);
             set_pos(sword_id, spos);
         } else if (dir.x == -1) {
+            Vector2 spos = {-1, hb.y};
             hb.x = hb.x - w;
             spos.x = hb.x;
             hb = {hb.x, hb.y + 1, w, h};
             set_hitbox(sword_id, hb);
             set_pos(sword_id, spos);
         }
+        //else if (dir.x == 0 && dir.y == -1) {
+        //} else if (dir.x == 0 && dir.y == 1) {
+        //}
     } else {
         set_pos(sword_id, (Vector2){-1, -1});
         set_hitbox(sword_id, (Rectangle){-1, -1, -1, -1});
@@ -1330,15 +1381,17 @@ void update_state_velocity() {
             hb.x += v.x, hb.y += v.y;
             set_hitbox(row.first, hb);
             // if the p.x is < 0, mark for destroy. also this might be gameover if an enemy hits the left
-            if (p.x <= 42) {
+            if (p.x <= SPAWN_X_LEFT || p.x > SPAWN_X_RIGHT) {
                 set_destroy(row.first, true);
                 // check entity type
                 entity_type t = get_type(row.first);
-                if (t == ENTITY_ORC) {
-                    gameover = true;
-                    current_scene = SCENE_GAMEOVER;
-                    return;
-                } else if (t == ENTITY_COIN) {
+                //if (t == ENTITY_ORC) {
+                //    gameover = true;
+                //    current_scene = SCENE_GAMEOVER;
+                //    return;
+                //}
+                //else
+                if (t == ENTITY_COIN) {
                     coins_lost++;
                 } else if (t == ENTITY_DWARF_MERCHANT) {
                     // we want to spawn again
