@@ -553,6 +553,7 @@ bool create_sword() {
     set_destroy(id, false);
     set_durability(
         id, (Vector2){starting_sword_durability, starting_sword_durability});
+    set_dir(id, (Vector2){1.0f, 0.0f});
     sword_id = id;
     return true;
 }
@@ -662,6 +663,7 @@ void handle_input_gameplay() {
         Vector2 dir = get_dir(hero_id);
         dir.x = -1;
         set_dir(hero_id, dir);
+        set_dir(sword_id, dir);
     }
     if (IsKeyDown(KEY_RIGHT)) {
         update_x_pos(hero_id, vx);
@@ -670,6 +672,7 @@ void handle_input_gameplay() {
         Vector2 dir = get_dir(hero_id);
         dir.x = 1;
         set_dir(hero_id, dir);
+        set_dir(sword_id, dir);
     }
     if (IsKeyDown(KEY_UP)) {
         update_y_pos(hero_id, -vy);
@@ -1108,6 +1111,7 @@ void draw_gameplay() {
             DrawTexturePro(txinfo[TX_HERO], src, dst, origin, 0.0f, c);
             EndShaderMode();
         } else if (type == ENTITY_SWORD) {
+            src.width *= get_dir(sword_id).x;
             int index = SH_DURABILITY_BLACK;
             Vector2 dura = get_durability(id);
             float d_frac = dura.x / dura.y;
@@ -1250,12 +1254,30 @@ void update_state_player_attack() {
     if (player_attacking) {
         Vector2 pos = get_pos(hero_id);
         Rectangle hb = get_hitbox(hero_id);
-        hb.x = hb.x + hb.width;
-        hb.y = hb.y + hb.height / 2.0f - 2;
-        Vector2 spos = {hb.x, hb.y};
-        hb = {hb.x, hb.y + 1, 8, 3};
-        set_hitbox(sword_id, hb);
-        set_pos(sword_id, spos);
+
+        Vector2 dir = get_dir(hero_id);
+
+        if (dir.x == 1) {
+            float w = 8;
+            float h = 3;
+            hb.x = hb.x + hb.width;
+            hb.y = hb.y + hb.height / 2.0f - 2;
+            Vector2 spos = {hb.x, hb.y};
+            hb = {hb.x, hb.y + 1, w, h};
+            set_hitbox(sword_id, hb);
+            set_pos(sword_id, spos);
+        } else if (dir.x == -1) {
+            float w = 8;
+            float h = 3;
+            hb.x = hb.x - w;
+            hb.y = hb.y + hb.height / 2.0f - 2;
+            Vector2 spos = {hb.x, hb.y};
+            hb = {hb.x, hb.y + 1, w, h};
+            set_hitbox(sword_id, hb);
+            set_pos(sword_id, spos);
+        }
+
+
     } else {
         set_pos(sword_id, (Vector2){-1, -1});
         set_hitbox(sword_id, (Rectangle){-1, -1, -1, -1});
