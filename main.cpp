@@ -142,7 +142,12 @@ Camera2D cam2d;
 int frame_count = 0;
 int frame_updates = 0;
 bool do_frame_update = false;
+
+
+#define DEFAULT_SPAWN_FREQ_INCR 30.0f
 int spawn_freq = DEFAULT_SPAWN_FREQ;
+int spawn_freq_incr = DEFAULT_SPAWN_FREQ_INCR;
+
 float base_orc_speed = BASE_ORC_SPEED;
 float current_orc_speed = BASE_ORC_SPEED;
 int random_orc_speed_mod_max = RANDOM_ORC_SPEED_MOD_MAX;
@@ -153,6 +158,7 @@ int base_coin_level_up_amount = 5;
 int merchant_item_selection = 0;
 
 bool do_spawn_merchant = false;
+bool merchant_spawned = false;
 
 Texture2D txinfo[NUM_TEXTURES];
 bool gameover = false;
@@ -286,12 +292,15 @@ void cleanup_data() {
     hero_total_damage_received = 0;
     player_level = 1;
     do_spawn_merchant = false;
+    merchant_spawned = false;
     current_orc_speed = base_orc_speed;
     // reset game state
     gameover = false;
     spawn_freq = DEFAULT_SPAWN_FREQ;
+    spawn_freq_incr = DEFAULT_SPAWN_FREQ_INCR;
     current_sword_durability = starting_sword_durability;
     enemies_killed = 0;
+    base_orc_speed = BASE_ORC_SPEED;
 }
 
 bool entity_exists(entityid id) {
@@ -765,11 +774,12 @@ void handle_input_merchant() {
             sz += 0.1f;
             set_size(sword_id, sz);
         }
-        current_coins -= base_coin_level_up_amount;
-        coins_spent += base_coin_level_up_amount;
+        current_coins -= base_coin_level_up_amount * player_level;
+        coins_spent += base_coin_level_up_amount * player_level;
+        levelup_flag = true;
+        merchant_spawned = false;
         current_scene = SCENE_GAMEPLAY;
         PlaySound(sfx[SFX_CONFIRM]);
-
 
     } else if (IsKeyPressed(KEY_LEFT)) {
         merchant_item_selection--;
@@ -805,7 +815,7 @@ void handle_input() {
 }
 
 void draw_debug_panel() {
-    int x = 10, y = 10, s = 30;
+    int x = 10, y = 10, s = 10;
     Color c = debug_txt_color;
     Vector2 p = get_pos(hero_id);
     DrawText(TextFormat("Frame %d", frame_count), x, y, s, c);
@@ -1369,17 +1379,18 @@ bool hero_health_maxed() {
 }
 
 void spawn_drop(entityid id) {
-    if (hero_health_maxed()) {
-        create_coin(id); // create a coin at the orc's position
-    } else {
-        // 50-50 chance of heart or coin
-        int r = GetRandomValue(0, 1);
-        if (r) {
-            create_coin(id);
-        } else {
-            create_health_replenish(id);
-        }
-    }
+    //if (hero_health_maxed()) {
+    create_coin(id); // create a coin at the orc's position
+    //}
+    //else {
+    //    // 50-50 chance of heart or coin
+    //    int r = GetRandomValue(0, 1);
+    //    if (r) {
+    //        create_coin(id);
+    //    } else {
+    //        create_health_replenish(id);
+    //    }
+    //}
 }
 
 void update_state_sword_collision() {
@@ -1441,17 +1452,18 @@ void update_state_hero_hp() {
 void update_level_up() {
     //if (coins_collected >= base_coin_level_up_amount * player_level && !levelup_flag && !do_spawn_merchant) {
     if (current_coins >= base_coin_level_up_amount * player_level &&
-        !levelup_flag && !do_spawn_merchant) {
-        levelup_flag = true;
+        !do_spawn_merchant && !merchant_spawned) {
         do_spawn_merchant = true;
     }
 
     if (levelup_flag) {
         player_level++;
         levelup_flag = false;
-        spawn_freq -= 30; // increase spawn frequency
-        if (spawn_freq < 60) {
-            spawn_freq = 60;
+        spawn_freq -= spawn_freq_incr; // increase spawn frequency
+        if (spawn_freq < 30) {
+            spawn_freq = 30.0f;
+        } else if (spawn_freq < 60) {
+            spawn_freq_incr = 5.0f;
         }
 
         //current_orc_speed = base_orc_speed - player_level * 0.05f; // increase orc speed
@@ -1460,6 +1472,7 @@ void update_level_up() {
     if (do_spawn_merchant) {
         create_dwarf_merchant();
         do_spawn_merchant = false;
+        merchant_spawned = true;
     }
 }
 
