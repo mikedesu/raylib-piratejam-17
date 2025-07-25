@@ -52,6 +52,8 @@
 
 #define MERCHANT_ITEM_SELECTION_MAX 3
 
+#define DEFAULT_SPAWN_FREQ_INCR 30.0f
+
 using std::map;
 using std::string;
 using std::unordered_map;
@@ -144,7 +146,6 @@ int frame_updates = 0;
 bool do_frame_update = false;
 
 
-#define DEFAULT_SPAWN_FREQ_INCR 30.0f
 int spawn_freq = DEFAULT_SPAWN_FREQ;
 int spawn_freq_incr = DEFAULT_SPAWN_FREQ_INCR;
 
@@ -692,6 +693,7 @@ void handle_input_gameplay() {
 
         Vector2 dir = get_dir(hero_id);
         dir.x = -1;
+        dir.y = 0;
         set_dir(hero_id, dir);
         set_dir(sword_id, dir);
     }
@@ -701,16 +703,29 @@ void handle_input_gameplay() {
 
         Vector2 dir = get_dir(hero_id);
         dir.x = 1;
+        dir.y = 0;
         set_dir(hero_id, dir);
         set_dir(sword_id, dir);
     }
     if (IsKeyDown(KEY_UP)) {
         update_y_pos(hero_id, -vy);
         update_hitbox_y(hero_id, -vy);
+
+        Vector2 dir = get_dir(hero_id);
+        dir.x = 0;
+        dir.y = -1;
+        set_dir(hero_id, dir);
+        set_dir(sword_id, dir);
     }
     if (IsKeyDown(KEY_DOWN)) {
         update_y_pos(hero_id, vy);
         update_hitbox_y(hero_id, vy);
+
+        Vector2 dir = get_dir(hero_id);
+        dir.x = 0;
+        dir.y = 1;
+        set_dir(hero_id, dir);
+        set_dir(sword_id, dir);
     }
     if (IsKeyPressed(KEY_A)) {
         player_attacking = true;
@@ -1092,16 +1107,22 @@ void draw_gameplay() {
     float y = target_h / 16.0f;
     w = target_w / 8.0f;
     float h = target_h / 8.0f;
-    src = {0, 0, 8, 8};
+
+    float src_w = txinfo[TX_GRASS_00].width;
+    float src_h = txinfo[TX_GRASS_00].height;
+    src = {0, 0, src_w, src_h};
     y += 32;
-    for (int j = 0; j < 4; j++) {
-        Rectangle dst = {x, y, 8, 8};
-        for (int i = 0; i < 13; i++) {
+    int tiles_high = 4;
+    int tiles_wide = 13;
+    for (int j = 0; j < tiles_high; j++) {
+        Rectangle dst = {x, y, src_w, src_h};
+        for (int i = 0; i < tiles_wide; i++) {
             DrawTexturePro(txinfo[TX_GRASS_00], src, dst, origin, 0.0f, WHITE);
-            dst.x += 8;
+            dst.x += src_w;
         }
-        y += 8;
+        y += src_h;
     }
+
     for (auto it : component_table) {
         entityid id = it.first;
         if (!has_comp(id, C_POSITION)) continue;
@@ -1113,7 +1134,12 @@ void draw_gameplay() {
         Color c = WHITE;
         if (type == ENTITY_HERO) {
             // modify the src.width by multiplying by hero's direction.x
-            src.width *= get_dir(hero_id).x;
+
+            Vector2 mydir = get_dir(hero_id);
+            if (mydir.x != 0) {
+                src.width *= mydir.x;
+            }
+
             int index = SH_HP_RED_GLOW;
             Vector2 myhp = get_hp(id);
             float hp_frac = myhp.x / myhp.y;

@@ -64,10 +64,27 @@ Each orc only has 1 HP, but I want to experiment with some ideas:
     - some power ups may be unavailable at lower levels 
 - spawning of enemy initial position should be a bit fixed on the x so as to be predictable timing-wise
 
+----------
 
+*7/25/2025: 3:34 pm*
 
+- greetings stream watchers!
 
-
+- we need an HUD. to start with:
+    - hp
+    - durability
+    - speed
+    - level
+    - coins
+    - kills
+- up and down directions so the sword can also aim up and down
+- enemies to spawn in from the left as well
+- enemies with greater hp
+- power up that increases attack power
+    - will require an ATTACK component
+- power up that acts as a bomb that wipes the screen
+    - will require a BOMBS component
+- i want to track combos and display them in a cool way
 
 
 
