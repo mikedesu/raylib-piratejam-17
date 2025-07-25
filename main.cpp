@@ -73,6 +73,7 @@ typedef enum
     C_HP,
     C_DURABILITY,
     C_DIRECTION,
+    C_SIZE,
     C_COUNT
 } component;
 
@@ -91,6 +92,7 @@ typedef enum
 typedef enum
 {
     ITEM_SWORD,
+    ITEM_SWORD_SIZE,
     ITEM_BOOTS,
     ITEM_HEALTH_EXPANSION,
     ITEM_COUNT
@@ -172,6 +174,7 @@ unordered_map<entityid, bool> destroy;
 unordered_map<entityid, Rectangle> sources;
 unordered_map<entityid, Vector2> hp;
 unordered_map<entityid, Vector2> durability;
+unordered_map<entityid, float> sizes;
 entityid next_entityid = 0;
 const entityid ENTITYID_INVALID = -1;
 entityid hero_id = ENTITYID_INVALID;
@@ -238,8 +241,10 @@ void randomize_merchant_items() {
     items.push_back(ITEM_BOOTS);
     items.push_back(ITEM_HEALTH_EXPANSION);
     items.push_back(ITEM_SWORD);
+    items.push_back(ITEM_SWORD_SIZE);
 
     int i = 0;
+
     while (i < 3) {
         // select a random index from items
         int r_index = GetRandomValue(0, items.size() - 1);
@@ -264,6 +269,7 @@ void cleanup_data() {
     hp.clear();
     durability.clear();
     directions.clear();
+    sizes.clear();
     // reset entity ids
     hero_id = ENTITYID_INVALID;
     sword_id = ENTITYID_INVALID;
@@ -515,6 +521,20 @@ Vector2 get_dir(entityid id) {
     return (Vector2){-1, -1}; // Return invalid direction if not found
 }
 
+bool set_size(entityid id, float sz) {
+    if (!entity_exists(id)) return false;
+    set_comp(id, C_SIZE);
+    sizes[id] = sz;
+    return true;
+}
+
+float get_size(entityid id) {
+    if (!has_comp(id, C_SIZE)) return -1.0f; // Invalid size
+    auto it = sizes.find(id);
+    if (it != sizes.end()) return it->second;
+    return -1.0f; // Return invalid size if not found
+}
+
 bool create_player() {
     entityid id = add_entity();
     if (id == ENTITYID_INVALID) return false;
@@ -554,6 +574,7 @@ bool create_sword() {
     set_durability(
         id, (Vector2){starting_sword_durability, starting_sword_durability});
     set_dir(id, (Vector2){1.0f, 0.0f});
+    set_size(id, 1.0f); // default size
     sword_id = id;
     return true;
 }
@@ -739,6 +760,10 @@ void handle_input_merchant() {
             myhp.y++;
             myhp.x = myhp.y;
             set_hp(hero_id, myhp);
+        } else if (merchant_items[merchant_item_selection] == ITEM_SWORD_SIZE) {
+            float sz = get_size(sword_id);
+            sz += 0.1f;
+            set_size(sword_id, sz);
         }
         current_coins -= base_coin_level_up_amount;
         coins_spent += base_coin_level_up_amount;
@@ -1017,12 +1042,14 @@ void draw_merchant() {
         } else if (merchant_items[i] == ITEM_BOOTS) {
             txkey = TX_BOOTS;
             item_text = "Speed";
-            //} else if (merchant_items[i] == ITEM_HEALTH_REPLENISH) {
-            //    txkey = TX_HEALTH_REPLENISH;
         } else if (merchant_items[i] == ITEM_HEALTH_EXPANSION) {
             txkey = TX_HEALTH_EXPANSION;
             item_text = "HP Up";
+        } else if (merchant_items[i] == ITEM_SWORD_SIZE) {
+            txkey = TX_SWORD_UP;
+            item_text = "Size";
         }
+
         src1 = {0, 0, (float)txinfo[txkey].width, (float)txinfo[txkey].height};
         dsts[i].width = src1.width * scale;
 
@@ -1041,37 +1068,15 @@ void draw_merchant() {
         dsts[i] = {xs[i], y2, w1, h1};
         DrawText(item_text.c_str(), dsts[i].x, dsts[i].y, 20, WHITE);
     }
-
-    //dsts[0] = {xs[0], y2, w1, h1};
-    //dsts[1] = {xs[1], y2, w1, h1};
-    //dsts[2] = {xs[2], y2, w1, h1};
-
-    //DrawText("Durability", dsts[0].x, dsts[0].y, 20, WHITE);
-    //DrawText("HP Up", dsts[1].x, dsts[0].y, 20, WHITE);
-    //DrawText("Speed", dsts[2].x, dsts[0].y, 20, WHITE);
 }
 
 void draw_gameplay() {
     BeginMode2D(cam2d);
-
     Vector2 pos = get_pos(hero_id);
     Rectangle src = get_src(hero_id);
     float w = target_w / 8.0f;
     float x = target_w / 16.0f + w / 2;
     float x1 = target_w / 16.0f + 3 * w / 4;
-
-    //if (pos.x + src.width > x1) {
-    //    float time = (float)GetTime();
-    //    int index = SH_INTENSE_RED_GLOW;
-    //    SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
-    //    BeginShaderMode(shaders[index]);
-    //} else if (pos.x + src.width > x) {
-    //    float time = (float)GetTime();
-    //    int index = SH_RED_GLOW;
-    //    SetShaderValue(shaders[index], GetShaderLocation(shaders[index], "time"), &time, SHADER_UNIFORM_FLOAT);
-    //    BeginShaderMode(shaders[index]);
-    //}
-
     ClearBackground(BLUE);
     x = target_w / 16.0f;
     float y = target_h / 16.0f;
@@ -1094,7 +1099,6 @@ void draw_gameplay() {
         if (pos.x < 0 || pos.y < 0) continue;
         entity_type type = get_type(id);
         Rectangle src = get_src(id);
-
         Rectangle dst = {pos.x, pos.y, src.width, src.height};
         Color c = WHITE;
         if (type == ENTITY_HERO) {
@@ -1112,6 +1116,8 @@ void draw_gameplay() {
             EndShaderMode();
         } else if (type == ENTITY_SWORD) {
             src.width *= get_dir(sword_id).x;
+            dst.width *= get_size(sword_id);
+            dst.height *= get_size(sword_id);
             int index = SH_DURABILITY_BLACK;
             Vector2 dura = get_durability(id);
             float d_frac = dura.x / dura.y;
@@ -1142,7 +1148,6 @@ void draw_gameplay() {
     //DrawLineEx((Vector2){x, y}, (Vector2){x, y + h}, 1.0f, (Color){0xff, 0xff, 0xff, 96});
     //x = target_w / 16.0f + 3 * w / 4;
     //DrawLineEx((Vector2){x, y}, (Vector2){x, y + h}, 1.0f, (Color){0xff, 0xff, 0xff, 96});
-
     EndMode2D();
 }
 
@@ -1209,7 +1214,6 @@ void load_textures() {
     load_texture(TX_BOOTS, "boots.png");
     load_texture(TX_HEALTH_REPLENISH, "heart-replenish.png");
     load_texture(TX_HEALTH_EXPANSION, "heart-expansion.png");
-
     draw_company_to_texture();
     draw_title_to_texture();
     draw_gameover_to_texture();
@@ -1217,7 +1221,6 @@ void load_textures() {
 
 void unload_textures() {
     unload_shaders();
-
     for (int i = TX_HERO; i < TX_COUNT; i++) {
         UnloadTexture(txinfo[i]);
     }
@@ -1246,7 +1249,6 @@ void init_gfx() {
     cam2d.rotation = 0.0f;
     cam2d.zoom = default_zoom;
     load_textures();
-
     load_shaders();
 }
 
@@ -1254,30 +1256,25 @@ void update_state_player_attack() {
     if (player_attacking) {
         Vector2 pos = get_pos(hero_id);
         Rectangle hb = get_hitbox(hero_id);
-
         Vector2 dir = get_dir(hero_id);
-
+        float sz = get_size(sword_id);
+        float w = 8 * sz;
+        float h = 3 * sz;
+        hb.y = hb.y + hb.height / 2.0f - 2;
+        Vector2 spos = {-1, hb.y};
         if (dir.x == 1) {
-            float w = 8;
-            float h = 3;
             hb.x = hb.x + hb.width;
-            hb.y = hb.y + hb.height / 2.0f - 2;
-            Vector2 spos = {hb.x, hb.y};
+            spos.x = hb.x;
             hb = {hb.x, hb.y + 1, w, h};
             set_hitbox(sword_id, hb);
             set_pos(sword_id, spos);
         } else if (dir.x == -1) {
-            float w = 8;
-            float h = 3;
             hb.x = hb.x - w;
-            hb.y = hb.y + hb.height / 2.0f - 2;
-            Vector2 spos = {hb.x, hb.y};
+            spos.x = hb.x;
             hb = {hb.x, hb.y + 1, w, h};
             set_hitbox(sword_id, hb);
             set_pos(sword_id, spos);
         }
-
-
     } else {
         set_pos(sword_id, (Vector2){-1, -1});
         set_hitbox(sword_id, (Rectangle){-1, -1, -1, -1});
@@ -1350,14 +1347,12 @@ void update_state_hero_collision() {
             set_destroy(row.first, true);
             PlaySound(sfx[SFX_EQUIP]);
             randomize_merchant_items();
-
             current_scene = SCENE_MERCHANT;
         } else if (t == ENTITY_HEALTH_REPLENISH &&
                    CheckCollisionRecs(hb, get_hitbox(row.first))) {
             hero_collision_counter++;
             set_destroy(row.first, true);
             PlaySound(sfx[SFX_CONFIRM]);
-
             Vector2 myhp = get_hp(hero_id);
             myhp.x++;
             if (myhp.x > myhp.y) {
