@@ -7,6 +7,11 @@
 #include <raylib.h>
 #include <raymath.h>
 
+#define SPAWN_X 150
+#define HERO_VELO_X_DEFAULT 0.25f
+#define HERO_VELO_Y_DEFAULT 0.25f
+#define BASE_ORC_SPEED -0.20f
+#define RANDOM_ORC_SPEED_MOD_MAX 2
 
 #define SH_RED_GLOW 0
 #define SH_INVERT 1
@@ -14,7 +19,8 @@
 #define SH_BLACK_GLOW 3
 #define SH_HP_RED_GLOW 4
 #define SH_BLUE_GLOW 5
-#define NUM_SHADERS 6
+#define SH_DURABILITY_BLACK 6
+#define NUM_SHADERS 7
 
 
 #define NUM_TEXTURES 32
@@ -66,6 +72,7 @@ typedef enum
     C_SRC,
     C_HP,
     C_DURABILITY,
+    C_DIRECTION,
     C_COUNT
 } component;
 
@@ -134,20 +141,22 @@ int frame_count = 0;
 int frame_updates = 0;
 bool do_frame_update = false;
 int spawn_freq = DEFAULT_SPAWN_FREQ;
-float base_orc_speed = -0.20f;
-float current_orc_speed = -0.20f;
-int random_orc_speed_mod_max = 2;
+float base_orc_speed = BASE_ORC_SPEED;
+float current_orc_speed = BASE_ORC_SPEED;
+int random_orc_speed_mod_max = RANDOM_ORC_SPEED_MOD_MAX;
 
 int player_level = 1;
 bool levelup_flag = false;
-int base_coin_level_up_amount = 3;
+int base_coin_level_up_amount = 5;
 int merchant_item_selection = 0;
 
 bool do_spawn_merchant = false;
 
 Texture2D txinfo[NUM_TEXTURES];
 bool gameover = false;
-int player_dir = 1;
+
+//int player_dir = 1;
+
 Sound sfx[NUM_SFX];
 Music music = {0};
 vector<entityid> cleanup;
@@ -157,6 +166,7 @@ unordered_map<entityid, entity_type> types;
 unordered_map<entityid, Vector2> positions;
 unordered_map<entityid, Rectangle> hitboxes;
 unordered_map<entityid, Vector2> velocities;
+unordered_map<entityid, Vector2> directions;
 unordered_map<entityid, bool> collides;
 unordered_map<entityid, bool> destroy;
 unordered_map<entityid, Rectangle> sources;
@@ -211,6 +221,7 @@ void load_shaders() {
     load_shader(SH_BLACK_GLOW, "black-glow.frag");
     load_shader(SH_HP_RED_GLOW, "hp-red-glow.frag");
     load_shader(SH_BLUE_GLOW, "blue-glow.frag");
+    load_shader(SH_DURABILITY_BLACK, "durability-black.frag");
 }
 
 void unload_shaders() {
@@ -252,6 +263,7 @@ void cleanup_data() {
     sources.clear();
     hp.clear();
     durability.clear();
+    directions.clear();
     // reset entity ids
     hero_id = ENTITYID_INVALID;
     sword_id = ENTITYID_INVALID;
@@ -489,6 +501,20 @@ Vector2 get_durability(entityid id) {
     return (Vector2){-1, -1}; // Return invalid durability if not found
 }
 
+bool set_dir(entityid id, Vector2 dir) {
+    if (!entity_exists(id)) return false;
+    set_comp(id, C_DIRECTION);
+    directions[id] = dir;
+    return true;
+}
+
+Vector2 get_dir(entityid id) {
+    if (!has_comp(id, C_DIRECTION)) return (Vector2){-1, -1};
+    auto it = directions.find(id);
+    if (it != directions.end()) return it->second;
+    return (Vector2){-1, -1}; // Return invalid direction if not found
+}
+
 bool create_player() {
     entityid id = add_entity();
     if (id == ENTITYID_INVALID) return false;
@@ -506,9 +532,9 @@ bool create_player() {
     set_hitbox(id, hitbox);
     set_collides(id, true);
     set_destroy(id, false);
-    Vector2 velocity = {0.25f, 0.25f};
-    set_velocity(id, velocity);
+    set_velocity(id, (Vector2){HERO_VELO_X_DEFAULT, HERO_VELO_Y_DEFAULT});
     set_hp(id, (Vector2){3.0f, 3.0f});
+    set_dir(id, (Vector2){1.0f, 0.0f}); // facing right by default
     hero_id = id;
     return true;
 }
@@ -541,7 +567,7 @@ bool create_orc() {
     float w = txinfo[0].width * 1.0f;
     float h = txinfo[0].height * 1.0f;
     // Select a random x,yf appropriate to the scene
-    Vector2 p = {150, 57};
+    Vector2 p = {SPAWN_X, 57};
     int random_y = 0;
     random_y = GetRandomValue(-1, 1);
     p.y += random_y * h;
@@ -570,7 +596,7 @@ bool create_dwarf_merchant() {
     float w = txinfo[0].width * 1.0f;
     float h = txinfo[0].height * 1.0f;
     // Select a random x,yf appropriate to the scene
-    Vector2 p = {200, 57};
+    Vector2 p = {SPAWN_X, 57};
     int random_y = 0;
     random_y = GetRandomValue(-1, 1);
     p.y += random_y * h;
@@ -632,12 +658,18 @@ void handle_input_gameplay() {
     if (IsKeyDown(KEY_LEFT)) {
         update_x_pos(hero_id, -vx);
         update_hitbox_x(hero_id, -vx);
-        player_dir = -1;
+
+        Vector2 dir = get_dir(hero_id);
+        dir.x = -1;
+        set_dir(hero_id, dir);
     }
     if (IsKeyDown(KEY_RIGHT)) {
         update_x_pos(hero_id, vx);
         update_hitbox_x(hero_id, vx);
-        player_dir = 1;
+
+        Vector2 dir = get_dir(hero_id);
+        dir.x = 1;
+        set_dir(hero_id, dir);
     }
     if (IsKeyDown(KEY_UP)) {
         update_y_pos(hero_id, -vy);
@@ -1059,9 +1091,12 @@ void draw_gameplay() {
         if (pos.x < 0 || pos.y < 0) continue;
         entity_type type = get_type(id);
         Rectangle src = get_src(id);
+
         Rectangle dst = {pos.x, pos.y, src.width, src.height};
         Color c = WHITE;
         if (type == ENTITY_HERO) {
+            // modify the src.width by multiplying by hero's direction.x
+            src.width *= get_dir(hero_id).x;
             int index = SH_HP_RED_GLOW;
             Vector2 myhp = get_hp(id);
             float hp_frac = myhp.x / myhp.y;
@@ -1073,7 +1108,17 @@ void draw_gameplay() {
             DrawTexturePro(txinfo[TX_HERO], src, dst, origin, 0.0f, c);
             EndShaderMode();
         } else if (type == ENTITY_SWORD) {
+            int index = SH_DURABILITY_BLACK;
+            Vector2 dura = get_durability(id);
+            float d_frac = dura.x / dura.y;
+            SetShaderValue(
+                shaders[index],
+                GetShaderLocation(shaders[index], "durability_fraction"),
+                &d_frac,
+                SHADER_UNIFORM_FLOAT);
+            BeginShaderMode(shaders[index]);
             DrawTexturePro(txinfo[TX_SWORD], src, dst, origin, 0.0f, c);
+            EndShaderMode();
         } else if (type == ENTITY_ORC) {
             DrawTexturePro(txinfo[TX_ORC], src, dst, origin, 0.0f, c);
         } else if (type == ENTITY_COIN) {
