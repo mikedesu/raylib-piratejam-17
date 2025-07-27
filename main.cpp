@@ -53,7 +53,8 @@
 #define TX_BOOTS 11
 #define TX_HEALTH_REPLENISH 12
 #define TX_HEALTH_EXPANSION 13
-#define TX_COUNT 14
+#define TX_BAT 14
+#define TX_COUNT 15
 
 #define SFX_CONFIRM 0
 #define SFX_HIT 1
@@ -95,6 +96,9 @@ typedef enum
     ENTITY_COIN,
     ENTITY_DWARF_MERCHANT,
     ENTITY_HEALTH_REPLENISH,
+    ENTITY_BAT,
+    ENTITY_MAGNET,
+    ENTITY_ORC_BOSS,
     ENTITY_COUNT
 } entity_type;
 
@@ -104,6 +108,7 @@ typedef enum
     ITEM_SWORD_SIZE,
     ITEM_BOOTS,
     ITEM_HEALTH_EXPANSION,
+    ITEM_MAGNET,
     ITEM_COUNT
 } item_type;
 
@@ -213,21 +218,15 @@ item_type merchant_items[MERCHANT_ITEM_SELECTION_MAX] = {
     ITEM_SWORD, ITEM_HEALTH_EXPANSION, ITEM_BOOTS};
 
 
-//int grass_tiles[GRASS_TILES_HIGH][GRASS_TILES_WIDE];
-vector<vector<int>> grass_tiles;
+int grass_tiles[GRASS_TILES_HIGH][GRASS_TILES_WIDE];
 
 
 void load_grass_tiles() {
-    grass_tiles.clear();
-    vector<int> tiles;
     for (int i = 0; i < GRASS_TILES_HIGH; i++) {
-        tiles.clear();
         for (int j = 0; j < GRASS_TILES_WIDE; j++) {
-            //printf("i: %d j: %d\n", i, j);
             int tile = GetRandomValue(0, 3) + TX_GRASS_00;
-            tiles.push_back(tile);
+            grass_tiles[i][j] = tile;
         }
-        grass_tiles.push_back(tiles);
     }
 }
 
@@ -896,7 +895,7 @@ void draw_hud() {
 }
 
 void draw_debug_panel() {
-    int x = 10, y = 10, s = 10;
+    int x = 10, y = 50, s = 10;
     Color c = debug_txt_color;
     Vector2 p = get_pos(hero_id);
     DrawText(TextFormat("Frame %d", frame_count), x, y, s, c);
@@ -1369,7 +1368,7 @@ void draw_frame() {
     ClearBackground(BLACK);
     DrawTexturePro(
         target_texture.texture, target_src, window_dst, origin, 0.0f, WHITE);
-    //draw_debug_panel();
+    draw_debug_panel();
     draw_hud();
     EndDrawing();
     frame_count++;
@@ -1411,6 +1410,7 @@ void load_textures() {
     load_texture(TX_BOOTS, "boots");
     load_texture(TX_HEALTH_REPLENISH, "meat");
     load_texture(TX_HEALTH_EXPANSION, "heart-expansion");
+    load_texture(TX_BAT, "bat");
     draw_company_to_texture();
     draw_title_to_texture();
 }
