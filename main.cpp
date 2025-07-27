@@ -220,7 +220,8 @@ void init_data() {
 
 
 void load_shader(int index, const char* path) {
-    shaders[index] = LoadShader(0, path);
+    //shaders[index] = LoadShader(0, path);
+    shaders[index] = LoadShader(0, TextFormat("shaders/%s.frag", path));
     if (shaders[index].id == 0) {
         fprintf(stderr, "Failed to load shader: %s\n", path);
         exit(EXIT_FAILURE);
@@ -228,13 +229,13 @@ void load_shader(int index, const char* path) {
 }
 
 void load_shaders() {
-    load_shader(SH_RED_GLOW, "red-glow.frag");
-    load_shader(SH_INTENSE_RED_GLOW, "intense-red-glow.frag");
-    load_shader(SH_INVERT, "invert.frag");
-    load_shader(SH_BLACK_GLOW, "black-glow.frag");
-    load_shader(SH_HP_RED_GLOW, "hp-red-glow.frag");
-    load_shader(SH_BLUE_GLOW, "blue-glow.frag");
-    load_shader(SH_DURABILITY_BLACK, "durability-black.frag");
+    load_shader(SH_RED_GLOW, "red-glow");
+    load_shader(SH_INTENSE_RED_GLOW, "intense-red-glow");
+    load_shader(SH_INVERT, "invert");
+    load_shader(SH_BLACK_GLOW, "black-glow");
+    load_shader(SH_HP_RED_GLOW, "hp-red-glow");
+    load_shader(SH_BLUE_GLOW, "blue-glow");
+    load_shader(SH_DURABILITY_BLACK, "durability-black");
 }
 
 void unload_shaders() {
@@ -1269,7 +1270,7 @@ void load_texture(int index, const char* path) {
         fprintf(stderr, "Texture %d already loaded\n", index);
         return; // Texture already loaded
     }
-    const char* full_path = TextFormat("img/%s", path);
+    const char* full_path = TextFormat("img/%s.png", path);
     // txinfo[index] = LoadTexture(path);
     txinfo[index] = LoadTexture(full_path);
     if (txinfo[index].id == 0) {
@@ -1281,20 +1282,20 @@ void load_texture(int index, const char* path) {
 }
 
 void load_textures() {
-    load_texture(TX_HERO, "human.png");
-    load_texture(TX_SWORD, "sword.png");
-    load_texture(TX_ORC, "orc.png");
-    load_texture(TX_GRASS_00, "tiles/grass-00.png");
-    load_texture(TX_GRASS_01, "tiles/grass-01.png");
-    load_texture(TX_GRASS_02, "tiles/grass-02.png");
-    load_texture(TX_GRASS_03, "tiles/grass-03.png");
-    load_texture(TX_COIN, "coin.png");
-    load_texture(TX_SWORD_UP, "sword-up.png");
-    load_texture(TX_WILD_ORC, "wild-orc.png");
-    load_texture(TX_DWARF_MERCHANT, "dwarf-merchant.png");
-    load_texture(TX_BOOTS, "boots.png");
-    load_texture(TX_HEALTH_REPLENISH, "heart-replenish.png");
-    load_texture(TX_HEALTH_EXPANSION, "heart-expansion.png");
+    load_texture(TX_HERO, "human");
+    load_texture(TX_SWORD, "sword");
+    load_texture(TX_ORC, "orc");
+    load_texture(TX_GRASS_00, "tiles/grass-00");
+    load_texture(TX_GRASS_01, "tiles/grass-01");
+    load_texture(TX_GRASS_02, "tiles/grass-02");
+    load_texture(TX_GRASS_03, "tiles/grass-03");
+    load_texture(TX_COIN, "coin");
+    load_texture(TX_SWORD_UP, "sword-up");
+    load_texture(TX_WILD_ORC, "wild-orc");
+    load_texture(TX_DWARF_MERCHANT, "dwarf-merchant");
+    load_texture(TX_BOOTS, "boots");
+    load_texture(TX_HEALTH_REPLENISH, "heart-replenish");
+    load_texture(TX_HEALTH_EXPANSION, "heart-expansion");
     draw_company_to_texture();
     draw_title_to_texture();
     draw_gameover_to_texture();
@@ -1302,9 +1303,8 @@ void load_textures() {
 
 void unload_textures() {
     unload_shaders();
-    for (int i = TX_HERO; i < TX_COUNT; i++) {
+    for (int i = TX_HERO; i < TX_COUNT; i++)
         UnloadTexture(txinfo[i]);
-    }
     UnloadRenderTexture(target_texture);
     UnloadRenderTexture(company_texture);
     UnloadRenderTexture(title_texture);
