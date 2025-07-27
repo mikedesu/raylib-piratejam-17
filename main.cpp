@@ -677,7 +677,13 @@ bool create_coin(entityid id) {
 
     //set_velocity(coin_id, (Vector2){-0.1f, 0});
     //set_velocity(coin_id, (Vector2){-0.1f, 0});
-    set_velocity(coin_id, (Vector2){velo.x, velo.y});
+    //set_velocity(coin_id, (Vector2){velo.x, velo.y});
+
+    if (velo.x < 0) {
+        set_velocity(coin_id, (Vector2){-0.1f, 0});
+    } else {
+        set_velocity(coin_id, (Vector2){0.1f, 0});
+    }
 
     set_pos(coin_id, pos);
     return true;
