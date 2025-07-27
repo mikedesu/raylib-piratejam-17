@@ -7,9 +7,11 @@
 #include <raylib.h>
 #include <raymath.h>
 
-#define SPAWN_X_RIGHT 150
-#define SPAWN_X_LEFT 42
+#define ORC_SPAWN_X_RIGHT 150
+#define ORC_SPAWN_X_LEFT 42
+#define ORC_SPAWN_Y 57
 
+#define DEFAULT_ORCS_TO_CREATE 1
 
 #define HERO_VELO_X_DEFAULT 0.25f
 #define HERO_VELO_Y_DEFAULT 0.25f
@@ -155,6 +157,7 @@ int spawn_freq_incr = DEFAULT_SPAWN_FREQ_INCR;
 float base_orc_speed = BASE_ORC_SPEED;
 float current_orc_speed = BASE_ORC_SPEED;
 int random_orc_speed_mod_max = RANDOM_ORC_SPEED_MOD_MAX;
+int num_orcs_to_create = DEFAULT_ORCS_TO_CREATE;
 
 int player_level = 1;
 bool levelup_flag = false;
@@ -193,11 +196,16 @@ bool player_attacking = false;
 int hero_collision_counter = 0;
 int sword_collision_counter = 0;
 int entities_destroyed = 0;
+
 int enemies_killed = 0;
 int total_enemies_killed = 0;
+int enemies_spawned = 0;
+int enemies_missed = 0;
+
 int current_coins = 0;
 int coins_spent = 0;
 int coins_collected = 0;
+int coins_spawned = 0;
 int coins_lost = 0;
 int hero_total_damage_received = 0;
 int continues = 0;
@@ -293,6 +301,7 @@ void cleanup_data() {
     coins_collected = 0;
     coins_spent = 0;
     current_coins = 0;
+    coins_spawned = 0;
     coins_lost = 0;
     hero_total_damage_received = 0;
     player_level = 1;
@@ -306,6 +315,7 @@ void cleanup_data() {
     current_sword_durability = starting_sword_durability;
     enemies_killed = 0;
     base_orc_speed = BASE_ORC_SPEED;
+    num_orcs_to_create = DEFAULT_ORCS_TO_CREATE;
 }
 
 bool entity_exists(entityid id) {
@@ -608,16 +618,20 @@ bool create_orc() {
         side = -1;
     }
 
-    float xpos = SPAWN_X_RIGHT;
+    float xpos = ORC_SPAWN_X_RIGHT;
+    float ypos = ORC_SPAWN_Y;
     if (side == -1) {
-        xpos = SPAWN_X_LEFT;
+        xpos = ORC_SPAWN_X_LEFT;
     }
 
-    Vector2 p = {xpos, 57};
+    Vector2 p = {xpos, ypos};
 
     int random_y = 0;
-    random_y = GetRandomValue(-1, 1);
+
+    //random_y = GetRandomValue(-1, 1);
+    random_y = GetRandomValue(-2, 2);
     p.y += random_y * h;
+
     set_pos(id, p);
     Rectangle hitbox = {p.x, p.y, w, h};
     set_hitbox(id, hitbox);
@@ -629,6 +643,7 @@ bool create_orc() {
     set_collides(id, true);
     set_destroy(id, false);
     set_hp(id, (Vector2){1.0f, 1.0f});
+    enemies_spawned++;
     return true;
 }
 
@@ -643,7 +658,7 @@ bool create_dwarf_merchant() {
     float w = txinfo[0].width * 1.0f;
     float h = txinfo[0].height * 1.0f;
     // Select a random x,yf appropriate to the scene
-    Vector2 p = {SPAWN_X_RIGHT, 57};
+    Vector2 p = {ORC_SPAWN_X_RIGHT, ORC_SPAWN_Y};
     int random_y = 0;
     random_y = GetRandomValue(-1, 1);
     p.y += random_y * h;
@@ -672,20 +687,14 @@ bool create_coin(entityid id) {
     set_hitbox(coin_id, hitbox);
     set_collides(coin_id, true);
     set_destroy(coin_id, false);
-
     Vector2 velo = get_velocity(id);
-
-    //set_velocity(coin_id, (Vector2){-0.1f, 0});
-    //set_velocity(coin_id, (Vector2){-0.1f, 0});
-    //set_velocity(coin_id, (Vector2){velo.x, velo.y});
-
     if (velo.x < 0) {
         set_velocity(coin_id, (Vector2){-0.1f, 0});
     } else {
         set_velocity(coin_id, (Vector2){0.1f, 0});
     }
-
     set_pos(coin_id, pos);
+    coins_spawned++;
     return true;
 }
 
@@ -1034,27 +1043,93 @@ void draw_title() {
         title_texture.texture, target_src, target_dst, origin, 0.0f, WHITE);
 }
 
-void draw_gameover_to_texture() {
+void draw_gameover() {
     BeginDrawing();
-    BeginTextureMode(gameover_texture);
     ClearBackground(BLACK);
-    int s = 20;
+    int s = 30;
     const char* text = "gameover";
     int m = MeasureText(text, s);
     int x = target_w / 2 - m / 2;
-    int y = target_h / 2 - s;
+    int y = target_h / 8 - s;
     Color c = {0xFF, 0, 0, 255};
     DrawText(text, x, y, s, c);
-    EndTextureMode();
-    EndDrawing();
 
+    // we want to draw some text representing stats from the
+    // most recent playthrough
+    // lets start with displaying how many enemies you killed
+
+    c = WHITE;
+    y += s + 10;
+    s = 20;
+
+    text = TextFormat("Enemies killed/spawned: %d/%d (%0.2f%)",
+                      enemies_killed,
+                      enemies_spawned,
+                      (float)enemies_killed / (float)enemies_spawned * 100.0f);
+    m = MeasureText(text, s);
+    x = target_w / 2 - m / 2;
+    DrawText(text, x, y, s, c);
+
+    //y += s + 10;
+    //text = TextFormat("Enemies spawned: %d", enemies_spawned);
+    //m = MeasureText(text, s);
+    //x = target_w / 2 - m / 2;
+    //DrawText(text, x, y, s, c);
+
+    y += s + 10;
+    text = TextFormat("Enemies missed/spawned: %d/%d (%0.2f%)",
+                      enemies_missed,
+                      enemies_spawned,
+                      (float)enemies_missed / (float)enemies_spawned * 100.0f);
+    m = MeasureText(text, s);
+    x = target_w / 2 - m / 2;
+    DrawText(text, x, y, s, c);
+
+    //y += s + 10;
+    //text = TextFormat("Enemies killed-spawned ratio: %0.2f",
+    //                  (float)enemies_killed / (float)enemies_spawned);
+    //m = MeasureText(text, s);
+    //x = target_w / 2 - m / 2;
+    //DrawText(text, x, y, s, c);
+
+    //y += s + 10;
+    //text = TextFormat("Enemies missed-spawned ratio: %0.2f",
+    //                  (float)enemies_missed / (float)enemies_spawned);
+    //m = MeasureText(text, s);
+    //x = target_w / 2 - m / 2;
+    //DrawText(text, x, y, s, c);
+
+    y += s + 10;
+    text = TextFormat("Coins collected/spawned: %d/%d (%0.2f%)",
+                      coins_collected,
+                      coins_spawned,
+                      (float)coins_collected / (float)coins_spawned * 100.0f);
+    m = MeasureText(text, s);
+    x = target_w / 2 - m / 2;
+    DrawText(text, x, y, s, c);
+
+    y += s + 10;
+    text = TextFormat("Coins missed: %d", coins_lost);
+    m = MeasureText(text, s);
+    x = target_w / 2 - m / 2;
+    DrawText(text, x, y, s, c);
+
+    y += s + 10;
+    text = TextFormat("Coins spent: %d", coins_spent);
+    m = MeasureText(text, s);
+    x = target_w / 2 - m / 2;
+    DrawText(text, x, y, s, c);
+
+
+    //EndTextureMode();
+    EndDrawing();
     frame_updates++;
 }
 
-void draw_gameover() {
-    DrawTexturePro(
-        gameover_texture.texture, target_src, target_dst, origin, 0.0f, WHITE);
-}
+//void draw_gameover() {
+//    DrawTexturePro(
+//        gameover_texture.texture, target_src, target_dst, origin, 0.0f, WHITE);
+//}
 
 void draw_merchant() {
     ClearBackground(BLACK);
@@ -1323,7 +1398,6 @@ void load_textures() {
     load_texture(TX_HEALTH_EXPANSION, "heart-expansion");
     draw_company_to_texture();
     draw_title_to_texture();
-    draw_gameover_to_texture();
 }
 
 void unload_textures() {
@@ -1401,22 +1475,19 @@ void update_state_velocity() {
         if (has_comp(row.first, C_VELOCITY)) {
             Vector2 p = get_pos(row.first), v = get_velocity(row.first);
             Rectangle hb = get_hitbox(row.first);
-            p.x += v.x, p.y += v.y;
+            p.x += v.x;
+            p.y += v.y;
             set_pos(row.first, p);
-            hb.x += v.x, hb.y += v.y;
+            hb.x += v.x;
+            hb.y += v.y;
             set_hitbox(row.first, hb);
             // if the p.x is < 0, mark for destroy. also this might be gameover if an enemy hits the left
-            if (p.x <= SPAWN_X_LEFT || p.x > SPAWN_X_RIGHT) {
+            if (p.x <= ORC_SPAWN_X_LEFT || p.x > ORC_SPAWN_X_RIGHT) {
                 set_destroy(row.first, true);
-                // check entity type
                 entity_type t = get_type(row.first);
-                //if (t == ENTITY_ORC) {
-                //    gameover = true;
-                //    current_scene = SCENE_GAMEOVER;
-                //    return;
-                //}
-                //else
-                if (t == ENTITY_COIN) {
+                if (t == ENTITY_ORC) {
+                    enemies_missed++;
+                } else if (t == ENTITY_COIN) {
                     coins_lost++;
                 } else if (t == ENTITY_DWARF_MERCHANT) {
                     // we want to spawn again
@@ -1462,18 +1533,19 @@ void update_state_hero_collision() {
             PlaySound(sfx[SFX_EQUIP]);
             randomize_merchant_items();
             current_scene = SCENE_MERCHANT;
-        } else if (t == ENTITY_HEALTH_REPLENISH &&
-                   CheckCollisionRecs(hb, get_hitbox(row.first))) {
-            hero_collision_counter++;
-            set_destroy(row.first, true);
-            PlaySound(sfx[SFX_CONFIRM]);
-            Vector2 myhp = get_hp(hero_id);
-            myhp.x++;
-            if (myhp.x > myhp.y) {
-                myhp.x = myhp.y;
-            }
-            set_hp(hero_id, myhp);
         }
+        //else if (t == ENTITY_HEALTH_REPLENISH &&
+        //           CheckCollisionRecs(hb, get_hitbox(row.first))) {
+        //    hero_collision_counter++;
+        //    set_destroy(row.first, true);
+        //    PlaySound(sfx[SFX_CONFIRM]);
+        //    Vector2 myhp = get_hp(hero_id);
+        //    myhp.x++;
+        //    if (myhp.x > myhp.y) {
+        //        myhp.x = myhp.y;
+        //    }
+        //    set_hp(hero_id, myhp);
+        //}
     }
 }
 
@@ -1553,13 +1625,7 @@ void update_state_hero_hp() {
     }
 }
 
-void update_level_up() {
-    //if (coins_collected >= base_coin_level_up_amount * player_level && !levelup_flag && !do_spawn_merchant) {
-    if (current_coins >= base_coin_level_up_amount * player_level &&
-        !do_spawn_merchant && !merchant_spawned) {
-        do_spawn_merchant = true;
-    }
-
+void handle_level_up() {
     if (levelup_flag) {
         player_level++;
         levelup_flag = false;
@@ -1570,8 +1636,29 @@ void update_level_up() {
             spawn_freq_incr = 5.0f;
         }
 
+        if (player_level >= 2) {
+            num_orcs_to_create = 2;
+        }
+
+        if (player_level >= 5) {
+            num_orcs_to_create = 3;
+        }
+        if (player_level >= 10) {
+            num_orcs_to_create = 4;
+        }
+
         //current_orc_speed = base_orc_speed - player_level * 0.05f; // increase orc speed
     }
+}
+
+void update_level_up() {
+    //if (coins_collected >= base_coin_level_up_amount * player_level && !levelup_flag && !do_spawn_merchant) {
+    if (current_coins >= base_coin_level_up_amount * player_level &&
+        !do_spawn_merchant && !merchant_spawned) {
+        do_spawn_merchant = true;
+    }
+
+    handle_level_up();
 
     if (do_spawn_merchant) {
         create_dwarf_merchant();
@@ -1585,8 +1672,9 @@ void update_state() {
     if (current_scene != SCENE_GAMEPLAY) return;
     // every N frames, create_orc
     if (frame_count % spawn_freq == 0) {
-        create_orc();
-        create_orc();
+        for (int i = 0; i < num_orcs_to_create; i++) {
+            create_orc();
+        }
     }
 
     update_state_hero_hp();
