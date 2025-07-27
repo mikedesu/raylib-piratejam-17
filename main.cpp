@@ -672,7 +672,13 @@ bool create_coin(entityid id) {
     set_hitbox(coin_id, hitbox);
     set_collides(coin_id, true);
     set_destroy(coin_id, false);
-    set_velocity(coin_id, (Vector2){-0.1f, 0});
+
+    Vector2 velo = get_velocity(id);
+
+    //set_velocity(coin_id, (Vector2){-0.1f, 0});
+    //set_velocity(coin_id, (Vector2){-0.1f, 0});
+    set_velocity(coin_id, (Vector2){velo.x, velo.y});
+
     set_pos(coin_id, pos);
     return true;
 }
@@ -768,7 +774,7 @@ void handle_input_gameplay() {
 }
 
 void handle_input_company() {
-    if (IsKeyPressed(KEY_ENTER)) {
+    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_A)) {
         current_scene = SCENE_TITLE;
         debug_txt_color = BLACK;
         PlaySound(sfx[SFX_CONFIRM]);
@@ -776,7 +782,7 @@ void handle_input_company() {
 }
 
 void handle_input_title() {
-    if (IsKeyPressed(KEY_ENTER)) {
+    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_A)) {
         current_scene = SCENE_GAMEPLAY;
         debug_txt_color = WHITE;
         gameover = false;
@@ -786,7 +792,8 @@ void handle_input_title() {
 }
 
 void handle_input_gameover() {
-    if (IsKeyPressed(KEY_ENTER)) {
+    //if (IsKeyPressed(KEY_ENTER)) {
+    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_A)) {
         current_scene = SCENE_TITLE;
         debug_txt_color = BLACK;
         PlaySound(sfx[SFX_CONFIRM]);
@@ -796,7 +803,8 @@ void handle_input_gameover() {
 }
 
 void handle_input_merchant() {
-    if (IsKeyPressed(KEY_ENTER)) {
+    //if (IsKeyPressed(KEY_ENTER)) {
+    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_A)) {
 
         // we have to handle what happens on purchasing an item
 
@@ -856,6 +864,16 @@ void handle_input() {
         handle_input_gameover();
     else if (current_scene == SCENE_MERCHANT)
         handle_input_merchant();
+}
+
+void draw_hud() {
+    int x = 10, y = 10, s = 30;
+    Color c = WHITE;
+    DrawText(TextFormat("Level: %d Coins: %d", player_level, current_coins),
+             x,
+             y,
+             s,
+             c);
 }
 
 void draw_debug_panel() {
@@ -957,7 +975,7 @@ void draw_company_to_texture() {
     DrawText(text, x, y, s, c);
     // below the text, draw another text in smaller font
     s = 10;
-    text = "Press ENTER to continue";
+    text = "Press A or ENTER to continue";
     m = MeasureText(text, s);
     x = target_w / 2 - m / 2;
     y += 40; // move down by s + 10 pixels
@@ -1255,7 +1273,8 @@ void draw_frame() {
     ClearBackground(BLACK);
     DrawTexturePro(
         target_texture.texture, target_src, window_dst, origin, 0.0f, WHITE);
-    draw_debug_panel();
+    //draw_debug_panel();
+    draw_hud();
     EndDrawing();
     frame_count++;
 }
