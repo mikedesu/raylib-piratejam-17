@@ -132,7 +132,6 @@ int window_size_min_h = 240;
 int target_fps = 60;
 
 float default_zoom = 8;
-//float default_zoom = 4;
 
 game_scene current_scene = SCENE_COMPANY;
 Color debug_txt_color = WHITE;
@@ -148,31 +147,25 @@ Camera2D cam2d;
 int frame_count = 0;
 int frame_updates = 0;
 bool do_frame_update = false;
-
-
 int spawn_freq = DEFAULT_SPAWN_FREQ;
 int spawn_freq_incr = DEFAULT_SPAWN_FREQ_INCR;
-
 float base_orc_speed = BASE_ORC_SPEED;
 float current_orc_speed = BASE_ORC_SPEED;
 int random_orc_speed_mod_max = RANDOM_ORC_SPEED_MOD_MAX;
 int num_orcs_to_create = DEFAULT_ORCS_TO_CREATE;
-
 int player_level = 1;
 bool levelup_flag = false;
 int base_coin_level_up_amount = 5;
 int merchant_item_selection = 0;
-
 bool do_spawn_merchant = false;
 bool merchant_spawned = false;
-
-Texture2D txinfo[NUM_TEXTURES];
 bool gameover = false;
 
-//int player_dir = 1;
-
+Texture2D txinfo[NUM_TEXTURES];
 Sound sfx[NUM_SFX];
 Music music = {0};
+Shader shaders[NUM_SHADERS];
+
 vector<entityid> cleanup;
 map<entityid, long> component_table;
 unordered_map<entityid, string> names;
@@ -195,12 +188,10 @@ bool player_attacking = false;
 int hero_collision_counter = 0;
 int sword_collision_counter = 0;
 int entities_destroyed = 0;
-
 int enemies_killed = 0;
 int total_enemies_killed = 0;
 int enemies_spawned = 0;
 int enemies_missed = 0;
-
 int current_coins = 0;
 int coins_spent = 0;
 int coins_collected = 0;
@@ -210,19 +201,13 @@ int hero_total_damage_received = 0;
 int continues = 0;
 float starting_sword_durability = 1.0f;
 float current_sword_durability = 1.0f;
-
 bool is_day = true;
 
 Rectangle sun = {target_w / 8.0f, target_h / 4.0f, 8, 8};
 Rectangle moon = {target_w / 8.0f, target_h / 4.0f, 8, 8};
 
-
 item_type merchant_items[MERCHANT_ITEM_SELECTION_MAX] = {
     ITEM_SWORD, ITEM_HEALTH_EXPANSION, ITEM_BOOTS};
-
-
-Shader shaders[NUM_SHADERS];
-
 
 void init_data() {
     if (!create_player() || !create_sword()) {
@@ -231,9 +216,7 @@ void init_data() {
     }
 }
 
-
 void load_shader(int index, const char* path) {
-    //shaders[index] = LoadShader(0, path);
     shaders[index] = LoadShader(0, TextFormat("shaders/%s.frag", path));
     if (shaders[index].id == 0) {
         fprintf(stderr, "Failed to load shader: %s\n", path);
@@ -266,16 +249,13 @@ void randomize_merchant_items() {
     items.push_back(ITEM_HEALTH_EXPANSION);
     items.push_back(ITEM_SWORD);
     items.push_back(ITEM_SWORD_SIZE);
-
     int i = 0;
-
-    while (i < 3) {
+    for (int i = 0; i < 3; i++) {
         // select a random index from items
         int r_index = GetRandomValue(0, items.size() - 1);
         merchant_items[i] = items[r_index];
         // remove the item at r_index
         items.erase(items.begin() + r_index);
-        i++;
     }
 }
 
@@ -567,17 +547,16 @@ float get_size(entityid id) {
 bool create_player() {
     entityid id = add_entity();
     if (id == ENTITYID_INVALID) return false;
+    Rectangle src = {
+        0, 0, txinfo[TX_HERO].width / 1.0f, txinfo[TX_HERO].height / 1.0f};
+    float x = target_w / 8.0f - src.width / 2.0f;
+    float y = target_h / 8.0f - src.height / 2.0f;
+    Vector2 v = {x, y};
+    Rectangle hitbox = {x + 2, y + 1, src.width - 4, src.height - 1};
     set_name(id, "hero");
     set_type(id, ENTITY_HERO);
-    Rectangle src = {0, 0, 7, 7};
     set_src(id, src);
-    float w = txinfo[0].width * 1.0f;
-    float h = txinfo[0].height * 1.0f;
-    float x = target_w / 16.0 + w;
-    float y = target_h / 8.0 - h / 2;
-    Vector2 v = {x, y};
     set_pos(id, v);
-    Rectangle hitbox = {x + 2, y + 1, w - 4, h - 1};
     set_hitbox(id, hitbox);
     set_collides(id, true);
     set_destroy(id, false);
@@ -1241,16 +1220,11 @@ void draw_gameplay() {
     w = target_w / 8.0f;
 
     if (is_day) {
-
         unsigned char a = 255 - (sun.y * 255.0 / (target_h / 4.0f));
-
         Color c = (Color){0, 0, 255, a};
-
         ClearBackground(c);
-
     } else {
         unsigned char a = (moon.y * 255.0 / (target_h / 4.0f));
-        //printf("%d\n", a);
         Color c = (Color){0, 0, 255, a};
         ClearBackground(c);
     }
