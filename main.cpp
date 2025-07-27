@@ -7,8 +7,11 @@
 #include <raylib.h>
 #include <raymath.h>
 
-#define SUN_VELO 0.25f
-#define MOON_VELO 0.25f
+#define GRASS_TILES_HIGH 4
+#define GRASS_TILES_WIDE 13
+
+#define SUN_VELO 0.01f
+#define MOON_VELO 0.01f
 
 #define DEFAULT_ORCS_TO_CREATE 1
 #define RANDOM_ORC_SPEED_MOD_MAX 2
@@ -209,6 +212,26 @@ Rectangle moon = {target_w / 8.0f, target_h / 4.0f, 8, 8};
 item_type merchant_items[MERCHANT_ITEM_SELECTION_MAX] = {
     ITEM_SWORD, ITEM_HEALTH_EXPANSION, ITEM_BOOTS};
 
+
+//int grass_tiles[GRASS_TILES_HIGH][GRASS_TILES_WIDE];
+vector<vector<int>> grass_tiles;
+
+
+void load_grass_tiles() {
+    grass_tiles.clear();
+    vector<int> tiles;
+    for (int i = 0; i < GRASS_TILES_HIGH; i++) {
+        tiles.clear();
+        for (int j = 0; j < GRASS_TILES_WIDE; j++) {
+            //printf("i: %d j: %d\n", i, j);
+            int tile = GetRandomValue(0, 3) + TX_GRASS_00;
+            tiles.push_back(tile);
+        }
+        grass_tiles.push_back(tiles);
+    }
+}
+
+
 void init_data() {
     if (!create_player() || !create_sword()) {
         fprintf(stderr, "Failed to create player or sword entity\n");
@@ -301,6 +324,8 @@ void cleanup_data() {
     enemies_killed = 0;
     base_orc_speed = BASE_ORC_SPEED;
     num_orcs_to_create = DEFAULT_ORCS_TO_CREATE;
+
+    load_grass_tiles();
 }
 
 bool entity_exists(entityid id) {
@@ -502,6 +527,25 @@ Vector2 get_hp(entityid id) {
     return (Vector2){-1, -1}; // Return invalid hp if not found
 }
 
+void incr_hp(entityid id, int amt) {
+    Vector2 myhp = get_hp(id);
+    myhp.x += amt;
+    if (myhp.x > myhp.y) {
+        myhp.x = myhp.y;
+    }
+    set_hp(id, myhp);
+}
+
+void decr_hp(entityid id, int amt) {
+    Vector2 myhp = get_hp(id);
+    myhp.x -= amt;
+    if (myhp.x < 0) {
+        myhp.x = 0;
+    }
+    set_hp(id, myhp);
+}
+
+
 bool set_durability(entityid id, Vector2 dura) {
     if (!entity_exists(id)) return false;
     set_comp(id, C_DURABILITY);
@@ -601,21 +645,15 @@ bool create_orc() {
     if (side == 0) {
         side = -1;
     }
-
     float xpos = ORC_SPAWN_X_RIGHT;
     float ypos = ORC_SPAWN_Y;
     if (side == -1) {
         xpos = ORC_SPAWN_X_LEFT;
     }
-
     Vector2 p = {xpos, ypos};
-
     int random_y = 0;
-
-    //random_y = GetRandomValue(-1, 1);
     random_y = GetRandomValue(-2, 2);
     p.y += random_y * h;
-
     set_pos(id, p);
     Rectangle hitbox = {p.x, p.y, w, h};
     set_hitbox(id, hitbox);
@@ -706,17 +744,14 @@ void handle_input_gameplay() {
     Vector2 velocity = get_velocity(hero_id);
     float vx = velocity.x; // use the x component for movement speed
     float vy = velocity.y; // use the y component for movement speed
-
     if (IsKeyDown(KEY_LEFT)) {
         update_x_pos(hero_id, -vx);
         update_hitbox_x(hero_id, -vx);
-
         Vector2 d = get_dir(hero_id);
         d.x = -1;
         set_dir(hero_id, d);
         set_dir(sword_id, d);
     }
-
     if (IsKeyDown(KEY_RIGHT)) {
         update_x_pos(hero_id, vx);
         update_hitbox_x(hero_id, vx);
@@ -725,7 +760,6 @@ void handle_input_gameplay() {
         set_dir(hero_id, d);
         set_dir(sword_id, d);
     }
-
     if (IsKeyDown(KEY_UP)) {
         update_y_pos(hero_id, -vy);
         update_hitbox_y(hero_id, -vy);
@@ -739,7 +773,6 @@ void handle_input_gameplay() {
         set_dir(hero_id, d);
         set_dir(sword_id, d);
     }
-
     if (IsKeyDown(KEY_DOWN)) {
         update_y_pos(hero_id, vy);
         update_hitbox_y(hero_id, vy);
@@ -753,14 +786,6 @@ void handle_input_gameplay() {
         set_dir(hero_id, d);
         set_dir(sword_id, d);
     }
-    //else if (IsKeyUp(KEY_DOWN)) {
-    //    Vector2 dir = get_dir(hero_id);
-    //    dir.y = 0;
-    //    set_dir(hero_id, dir);
-    //    set_dir(sword_id, dir);
-    //}
-
-
     if (IsKeyPressed(KEY_A)) {
         player_attacking = true;
         set_durability(
@@ -804,9 +829,7 @@ void handle_input_gameover() {
 void handle_input_merchant() {
     //if (IsKeyPressed(KEY_ENTER)) {
     if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_A)) {
-
         // we have to handle what happens on purchasing an item
-
         if (merchant_items[merchant_item_selection] == ITEM_SWORD) {
             current_sword_durability++;
         } else if (merchant_items[merchant_item_selection] == ITEM_BOOTS) {
@@ -831,13 +854,11 @@ void handle_input_merchant() {
         merchant_spawned = false;
         current_scene = SCENE_GAMEPLAY;
         PlaySound(sfx[SFX_CONFIRM]);
-
     } else if (IsKeyPressed(KEY_LEFT)) {
         merchant_item_selection--;
         if (merchant_item_selection < 0) {
             merchant_item_selection = MERCHANT_ITEM_SELECTION_MAX;
         }
-
     } else if (IsKeyPressed(KEY_RIGHT)) {
         merchant_item_selection++;
         if (merchant_item_selection >= MERCHANT_ITEM_SELECTION_MAX) {
@@ -852,7 +873,6 @@ void handle_input() {
         TakeScreenshot(TextFormat("screenshot_%d.png", frame_count));
         PlaySound(sfx[SFX_CONFIRM]);
     }
-
     if (current_scene == SCENE_COMPANY)
         handle_input_company();
     else if (current_scene == SCENE_TITLE)
@@ -918,7 +938,6 @@ void draw_debug_panel() {
     y += s;
     DrawText(TextFormat("Coins Lost: %d", coins_lost), x, y, s, c);
     y += s;
-
     Vector2 myhp = get_hp(hero_id);
     DrawText(TextFormat("HP: %0.1f/%0.1f", myhp.x, myhp.y, coins_collected),
              x,
@@ -936,11 +955,9 @@ void draw_debug_panel() {
     y += s;
     DrawText(TextFormat("Coins spent: %d", coins_spent), x, y, s, c);
     y += s;
-
     Vector2 dura = get_durability(sword_id);
     DrawText(TextFormat("Durability: %0.1f/%0.1f", dura.x, dura.y), x, y, s, c);
     y += s;
-
     DrawText(
         TextFormat("Enemies killed this game: %d", enemies_killed), x, y, s, c);
     y += s;
@@ -978,15 +995,12 @@ void draw_company_to_texture() {
     m = MeasureText(text, s);
     x = target_w / 2 - m / 2;
     y += 40; // move down by s + 10 pixels
-
     //c = {0x99, 0x99, 0x99, 255};
     DrawText(text, x, y, s, c);
     EndTextureMode();
     EndDrawing();
-
     frame_updates++;
 }
-
 
 void draw_company() {
     DrawTexturePro(
@@ -1009,7 +1023,6 @@ void draw_title_to_texture() {
     float w = src.width * scale;
     float h = src.height * scale;
     float x0 = target_w / 2.0f - w / 2;
-    //float y0 = target_h / 2.0f + s + 10;
     // lets make y0 such that the sword is dead-center on top of the text
     float y0 = target_h / 2.0f + s / 2.0f - h / 2 + 2 * scale;
     Rectangle dst = {x0, y0, w, h};
@@ -1018,7 +1031,6 @@ void draw_title_to_texture() {
     DrawText(text, x, y, s, fg);
     EndTextureMode();
     EndDrawing();
-
     frame_updates++;
 }
 
@@ -1037,15 +1049,12 @@ void draw_gameover() {
     int y = target_h / 8 - s;
     Color c = {0xFF, 0, 0, 255};
     DrawText(text, x, y, s, c);
-
     // we want to draw some text representing stats from the
     // most recent playthrough
     // lets start with displaying how many enemies you killed
-
     c = WHITE;
     y += s + 10;
     s = 20;
-
     text = TextFormat("Enemies killed/spawned: %d/%d (%0.2f%)",
                       enemies_killed,
                       enemies_spawned,
@@ -1053,13 +1062,11 @@ void draw_gameover() {
     m = MeasureText(text, s);
     x = target_w / 2 - m / 2;
     DrawText(text, x, y, s, c);
-
     //y += s + 10;
     //text = TextFormat("Enemies spawned: %d", enemies_spawned);
     //m = MeasureText(text, s);
     //x = target_w / 2 - m / 2;
     //DrawText(text, x, y, s, c);
-
     y += s + 10;
     text = TextFormat("Enemies missed/spawned: %d/%d (%0.2f%)",
                       enemies_missed,
@@ -1068,21 +1075,18 @@ void draw_gameover() {
     m = MeasureText(text, s);
     x = target_w / 2 - m / 2;
     DrawText(text, x, y, s, c);
-
     //y += s + 10;
     //text = TextFormat("Enemies killed-spawned ratio: %0.2f",
     //                  (float)enemies_killed / (float)enemies_spawned);
     //m = MeasureText(text, s);
     //x = target_w / 2 - m / 2;
     //DrawText(text, x, y, s, c);
-
     //y += s + 10;
     //text = TextFormat("Enemies missed-spawned ratio: %0.2f",
     //                  (float)enemies_missed / (float)enemies_spawned);
     //m = MeasureText(text, s);
     //x = target_w / 2 - m / 2;
     //DrawText(text, x, y, s, c);
-
     y += s + 10;
     text = TextFormat("Coins collected/spawned: %d/%d (%0.2f%)",
                       coins_collected,
@@ -1091,20 +1095,16 @@ void draw_gameover() {
     m = MeasureText(text, s);
     x = target_w / 2 - m / 2;
     DrawText(text, x, y, s, c);
-
     y += s + 10;
     text = TextFormat("Coins missed: %d", coins_lost);
     m = MeasureText(text, s);
     x = target_w / 2 - m / 2;
     DrawText(text, x, y, s, c);
-
     y += s + 10;
     text = TextFormat("Coins spent: %d", coins_spent);
     m = MeasureText(text, s);
     x = target_w / 2 - m / 2;
     DrawText(text, x, y, s, c);
-
-
     //EndTextureMode();
     EndDrawing();
     frame_updates++;
@@ -1117,7 +1117,6 @@ void draw_gameover() {
 
 void draw_merchant() {
     ClearBackground(BLACK);
-
     // draw some text above the dwarf in big font
     int s = 30;
     const char* text = "y0, watchu need?";
@@ -1129,16 +1128,13 @@ void draw_merchant() {
     float x0 = target_w / 2.0f - w / 2;
     float y0 = target_h / 4.0f - h / 2;
     Rectangle dst = {x0, y0, w, h};
-
     int x = target_w / 2 - m / 2;
     // position it above the dwarf
     int y = y0 - s - 10; // move up by s + 10 pixels
     Color c = WHITE;
     DrawText(text, x, y, s, c);
-
     // draw the dwarf merchant texture in the center of the screen
     DrawTexturePro(txinfo[TX_DWARF_MERCHANT], src, dst, origin, 0.0f, WHITE);
-
     float base_box_size = 8;
     float w1 = base_box_size * scale;
     float h1 = base_box_size * scale;
@@ -1154,24 +1150,19 @@ void draw_merchant() {
     //DrawRectangleLinesEx(dst1, 1.0f, RED);
     //DrawRectangleLinesEx(dst2, 1.0f, RED);
     //DrawRectangleLinesEx(dst3, 1.0f, RED);
-
     int txkey = TX_SWORD_UP;
     Rectangle src1 = {
         0, 0, (float)txinfo[txkey].width, (float)txinfo[txkey].height};
     //dst1.width = src1.width * scale;
     //dst2.width = src1.width * scale;
     //dst3.width = src1.width * scale;
-
     int index = SH_BLUE_GLOW;
     float time = (float)GetTime();
-
     Rectangle dsts[MERCHANT_ITEM_SELECTION_MAX] = {dst1, dst2, dst3};
     dsts[0].width = src1.width * scale;
     dsts[1].width = src1.width * scale;
     dsts[2].width = src1.width * scale;
-
     string item_text = "";
-
     for (int i = 0; i < MERCHANT_ITEM_SELECTION_MAX; i++) {
         if (merchant_items[i] == ITEM_SWORD) {
             txkey = TX_SWORD_UP;
@@ -1186,10 +1177,8 @@ void draw_merchant() {
             txkey = TX_SWORD_UP;
             item_text = "Size";
         }
-
         src1 = {0, 0, (float)txinfo[txkey].width, (float)txinfo[txkey].height};
         dsts[i].width = src1.width * scale;
-
         if (merchant_item_selection == i) {
             DrawRectangleLinesEx(dsts[i], 2.0f, BLUE);
             SetShaderValue(shaders[index],
@@ -1207,6 +1196,38 @@ void draw_merchant() {
     }
 }
 
+
+void draw_gameplay_grass() {
+    // draw grass tiles
+    float src_w = txinfo[TX_GRASS_00].width;
+    float src_h = txinfo[TX_GRASS_00].height;
+    Rectangle src = {0, 0, src_w, src_h};
+    float x = target_w / 16.0f;
+    float y = target_h / 16.0f + 32;
+    for (int j = 0; j < GRASS_TILES_HIGH; j++) {
+        Rectangle dst = {x, y, src_w, src_h};
+        for (int i = 0; i < GRASS_TILES_WIDE; i++) {
+            //DrawTexturePro(txinfo[TX_GRASS_00], src, dst, origin, 0.0f, WHITE);
+            DrawTexturePro(
+                txinfo[grass_tiles[j][i]], src, dst, origin, 0.0f, WHITE);
+            dst.x += src_w;
+        }
+        y += src_h;
+    }
+}
+
+void draw_gameplay_sky() {
+    if (is_day) {
+        unsigned char a = 255 - (sun.y * 255.0 / (target_h / 4.0f));
+        Color c = (Color){0, 0, 255, a};
+        ClearBackground(c);
+    } else {
+        unsigned char a = (moon.y * 255.0 / (target_h / 4.0f));
+        Color c = (Color){0, 0, 255, a};
+        ClearBackground(c);
+    }
+}
+
 void draw_gameplay() {
     BeginMode2D(cam2d);
     Vector2 pos = get_pos(hero_id);
@@ -1218,39 +1239,39 @@ void draw_gameplay() {
     float h = target_h / 8.0f;
     x = target_w / 16.0f;
     w = target_w / 8.0f;
+    //if (is_day) {
+    //    unsigned char a = 255 - (sun.y * 255.0 / (target_h / 4.0f));
+    //    Color c = (Color){0, 0, 255, a};
+    //    ClearBackground(c);
+    //} else {
+    //    unsigned char a = (moon.y * 255.0 / (target_h / 4.0f));
+    //    Color c = (Color){0, 0, 255, a};
+    //    ClearBackground(c);
+    //}
 
-    if (is_day) {
-        unsigned char a = 255 - (sun.y * 255.0 / (target_h / 4.0f));
-        Color c = (Color){0, 0, 255, a};
-        ClearBackground(c);
-    } else {
-        unsigned char a = (moon.y * 255.0 / (target_h / 4.0f));
-        Color c = (Color){0, 0, 255, a};
-        ClearBackground(c);
-    }
-
+    draw_gameplay_sky();
     // draw sun
     if (is_day) {
         DrawRectangleRec(sun, YELLOW);
     } else {
         DrawRectangleRec(moon, GRAY);
     }
-
     // draw grass tiles
-    float src_w = txinfo[TX_GRASS_00].width;
-    float src_h = txinfo[TX_GRASS_00].height;
-    src = {0, 0, src_w, src_h};
-    y += 32;
-    int tiles_high = 4;
-    int tiles_wide = 13;
-    for (int j = 0; j < tiles_high; j++) {
-        Rectangle dst = {x, y, src_w, src_h};
-        for (int i = 0; i < tiles_wide; i++) {
-            DrawTexturePro(txinfo[TX_GRASS_00], src, dst, origin, 0.0f, WHITE);
-            dst.x += src_w;
-        }
-        y += src_h;
-    }
+    //float src_w = txinfo[TX_GRASS_00].width;
+    //float src_h = txinfo[TX_GRASS_00].height;
+    //src = {0, 0, src_w, src_h};
+    //y += 32;
+    //for (int j = 0; j < GRASS_TILES_HIGH; j++) {
+    //    Rectangle dst = {x, y, src_w, src_h};
+    //    for (int i = 0; i < GRASS_TILES_WIDE; i++) {
+    //        //DrawTexturePro(txinfo[TX_GRASS_00], src, dst, origin, 0.0f, WHITE);
+    //        DrawTexturePro(
+    //            txinfo[grass_tiles[j][i]], src, dst, origin, 0.0f, WHITE);
+    //        dst.x += src_w;
+    //    }
+    //    y += src_h;
+    //}
+    draw_gameplay_grass();
 
     for (auto it : component_table) {
         entityid id = it.first;
@@ -1263,12 +1284,10 @@ void draw_gameplay() {
         Color c = WHITE;
         if (type == ENTITY_HERO) {
             // modify the src.width by multiplying by hero's direction.x
-
             Vector2 mydir = get_dir(hero_id);
             if (mydir.x != 0) {
                 src.width *= mydir.x;
             }
-
             int index = SH_HP_RED_GLOW;
             Vector2 myhp = get_hp(id);
             float hp_frac = myhp.x / myhp.y;
@@ -1280,10 +1299,6 @@ void draw_gameplay() {
             DrawTexturePro(txinfo[TX_HERO], src, dst, origin, 0.0f, c);
             EndShaderMode();
         } else if (type == ENTITY_SWORD) {
-            //src.width = txinfo[TX_SWORD_UP].width;
-            //src.height = txinfo[TX_SWORD_UP].height;
-            //dst = {pos.x, pos.y, src.width, src.height};
-
             Vector2 mydir = get_dir(sword_id);
             int txindex = TX_SWORD;
             //if (mydir.y == -1) {
@@ -1299,7 +1314,6 @@ void draw_gameplay() {
             }
             dst.width *= get_size(sword_id);
             dst.height *= get_size(sword_id);
-
             int index = SH_DURABILITY_BLACK;
             Vector2 dura = get_durability(id);
             float d_frac = dura.x / dura.y;
@@ -1395,7 +1409,7 @@ void load_textures() {
     load_texture(TX_WILD_ORC, "wild-orc");
     load_texture(TX_DWARF_MERCHANT, "dwarf-merchant");
     load_texture(TX_BOOTS, "boots");
-    load_texture(TX_HEALTH_REPLENISH, "heart-replenish");
+    load_texture(TX_HEALTH_REPLENISH, "meat");
     load_texture(TX_HEALTH_EXPANSION, "heart-expansion");
     draw_company_to_texture();
     draw_title_to_texture();
@@ -1441,9 +1455,7 @@ void update_state_player_attack() {
         float sz = get_size(sword_id);
         float w = txinfo[TX_SWORD].width * sz;
         float h = txinfo[TX_SWORD].height * sz;
-
         hb.y = hb.y + hb.height / 2.0f - 2;
-
         if (dir.x == 1) {
             Vector2 spos = {-1, hb.y};
             hb.x = hb.x + hb.width;
@@ -1459,9 +1471,6 @@ void update_state_player_attack() {
             set_hitbox(sword_id, hb);
             set_pos(sword_id, spos);
         }
-        //else if (dir.x == 0 && dir.y == -1) {
-        //} else if (dir.x == 0 && dir.y == 1) {
-        //}
     } else {
         set_pos(sword_id, (Vector2){-1, -1});
         set_hitbox(sword_id, (Rectangle){-1, -1, -1, -1});
@@ -1499,11 +1508,9 @@ void update_state_velocity() {
     }
 }
 
-void damage_hero(int damage) {
-    Vector2 myhp = get_hp(hero_id);
-    myhp.x -= damage;
-    set_hp(hero_id, myhp);
-}
+//void damage_hero(int damage) {
+//    decr_hp(hero_id, damage);
+//}
 
 void update_state_hero_collision() {
     // collision update
@@ -1516,7 +1523,7 @@ void update_state_hero_collision() {
             hero_collision_counter++;
             hero_total_damage_received++;
             set_destroy(row.first, true);
-            damage_hero(1);
+            decr_hp(hero_id, 1);
             enemies_killed++;
             total_enemies_killed++;
             PlaySound(sfx[SFX_GET_HIT]);
@@ -1534,19 +1541,13 @@ void update_state_hero_collision() {
             PlaySound(sfx[SFX_EQUIP]);
             randomize_merchant_items();
             current_scene = SCENE_MERCHANT;
+        } else if (t == ENTITY_HEALTH_REPLENISH &&
+                   CheckCollisionRecs(hb, get_hitbox(row.first))) {
+            hero_collision_counter++;
+            set_destroy(row.first, true);
+            PlaySound(sfx[SFX_CONFIRM]);
+            incr_hp(hero_id, 1);
         }
-        //else if (t == ENTITY_HEALTH_REPLENISH &&
-        //           CheckCollisionRecs(hb, get_hitbox(row.first))) {
-        //    hero_collision_counter++;
-        //    set_destroy(row.first, true);
-        //    PlaySound(sfx[SFX_CONFIRM]);
-        //    Vector2 myhp = get_hp(hero_id);
-        //    myhp.x++;
-        //    if (myhp.x > myhp.y) {
-        //        myhp.x = myhp.y;
-        //    }
-        //    set_hp(hero_id, myhp);
-        //}
     }
 }
 
@@ -1556,18 +1557,17 @@ bool hero_health_maxed() {
 }
 
 void spawn_drop(entityid id) {
-    //if (hero_health_maxed()) {
-    create_coin(id); // create a coin at the orc's position
-    //}
-    //else {
-    //    // 50-50 chance of heart or coin
-    //    int r = GetRandomValue(0, 1);
-    //    if (r) {
-    //        create_coin(id);
-    //    } else {
-    //        create_health_replenish(id);
-    //    }
-    //}
+    if (hero_health_maxed()) {
+        create_coin(id); // create a coin at the orc's position
+    } else {
+        // 1-4 chance of heart or coin
+        int r = GetRandomValue(0, 3);
+        if (r == 3) {
+            create_health_replenish(id);
+        } else {
+            create_coin(id);
+        }
+    }
 }
 
 void update_state_sword_collision() {
@@ -1753,6 +1753,7 @@ void unload_soundfiles() {
 int main() {
     init_gfx();
     init_sound();
+    cleanup_data();
     while (!WindowShouldClose()) {
         handle_input();
         update_state();
