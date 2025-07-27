@@ -21,6 +21,10 @@
 #define ORC_SPAWN_X_RIGHT 150
 #define ORC_SPAWN_X_LEFT 42
 #define ORC_SPAWN_Y 57
+
+#define BAT_SPAWN_X 0
+#define BAT_SPAWN_Y 0
+
 #define HERO_VELO_X_DEFAULT 0.25f
 #define HERO_VELO_Y_DEFAULT 0.25f
 #define BASE_ORC_SPEED -0.20f
@@ -630,15 +634,42 @@ bool create_sword() {
     return true;
 }
 
+bool create_bat() {
+    entityid id = add_entity();
+    if (id == ENTITYID_INVALID) return false;
+    set_name(id, "bat");
+    set_type(id, ENTITY_BAT);
+    int txkey = TX_ORC;
+    float w = txinfo[txkey].width;
+    float h = txinfo[txkey].height;
+    Rectangle src = {0, 0, w, h};
+    float xpos = target_w / 2.0f;
+    float ypos = target_h / 8.0f;
+    Vector2 p = {xpos, ypos};
+    Rectangle hitbox = {p.x, p.y, w, h};
+    set_src(id, src);
+    set_pos(id, p);
+    set_hitbox(id, hitbox);
+
+    Vector2 v = {0, 0.20f};
+    set_velocity(id, v);
+
+    set_collides(id, true);
+    set_destroy(id, false);
+    set_hp(id, (Vector2){1.0f, 1.0f});
+    enemies_spawned++;
+    return true;
+}
+
 bool create_orc() {
     entityid id = add_entity();
     if (id == ENTITYID_INVALID) return false;
     set_name(id, "orc");
     set_type(id, ENTITY_ORC);
-    Rectangle src = {0, 0, -7, 7};
-    set_src(id, src);
-    float w = txinfo[0].width * 1.0f;
-    float h = txinfo[0].height * 1.0f;
+    int txkey = TX_ORC;
+    float w = txinfo[txkey].width;
+    float h = txinfo[txkey].height;
+    Rectangle src = {0, 0, w, h};
     // Select a random x,y appropriate to the scene based on randomly-chosen direction to start
     int side = GetRandomValue(0, 1);
     if (side == 0) {
@@ -653,8 +684,9 @@ bool create_orc() {
     int random_y = 0;
     random_y = GetRandomValue(-2, 2);
     p.y += random_y * h;
-    set_pos(id, p);
     Rectangle hitbox = {p.x, p.y, w, h};
+    set_src(id, src);
+    set_pos(id, p);
     set_hitbox(id, hitbox);
     // Set a random velocity to the orc
     set_velocity(id,
@@ -1483,7 +1515,8 @@ void update_state_velocity() {
         // skip the hero
         if (row.first == hero_id) continue;
         if (has_comp(row.first, C_VELOCITY)) {
-            Vector2 p = get_pos(row.first), v = get_velocity(row.first);
+            Vector2 p = get_pos(row.first);
+            Vector2 v = get_velocity(row.first);
             Rectangle hb = get_hitbox(row.first);
             p.x += v.x;
             p.y += v.y;
@@ -1504,6 +1537,10 @@ void update_state_velocity() {
                     do_spawn_merchant = true;
                 }
             }
+
+            //else if (p.y > target_h / default_zoom) {
+            //
+            //            }
         }
     }
 }
