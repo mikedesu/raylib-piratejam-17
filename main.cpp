@@ -7,6 +7,9 @@
 #include <raylib.h>
 #include <raymath.h>
 
+#define SUN_VELO 0.25f
+#define MOON_VELO 0.25f
+
 #define DEFAULT_ORCS_TO_CREATE 1
 #define RANDOM_ORC_SPEED_MOD_MAX 2
 #define DEFAULT_SPAWN_FREQ 300
@@ -207,6 +210,12 @@ int hero_total_damage_received = 0;
 int continues = 0;
 float starting_sword_durability = 1.0f;
 float current_sword_durability = 1.0f;
+
+bool is_day = true;
+
+Rectangle sun = {target_w / 8.0f, target_h / 4.0f, 8, 8};
+Rectangle moon = {target_w / 8.0f, target_h / 4.0f, 8, 8};
+
 
 item_type merchant_items[MERCHANT_ITEM_SELECTION_MAX] = {
     ITEM_SWORD, ITEM_HEALTH_EXPANSION, ITEM_BOOTS};
@@ -1224,14 +1233,36 @@ void draw_gameplay() {
     Vector2 pos = get_pos(hero_id);
     Rectangle src = get_src(hero_id);
     float w = target_w / 8.0f;
-    float x = target_w / 16.0f + w / 2;
+    float x = target_w / 16.0f;
     float x1 = target_w / 16.0f + 3 * w / 4;
-    ClearBackground(BLUE);
-    x = target_w / 16.0f;
     float y = target_h / 16.0f;
-    w = target_w / 8.0f;
     float h = target_h / 8.0f;
+    x = target_w / 16.0f;
+    w = target_w / 8.0f;
 
+    if (is_day) {
+
+        unsigned char a = 255 - (sun.y * 255.0 / (target_h / 4.0f));
+
+        Color c = (Color){0, 0, 255, a};
+
+        ClearBackground(c);
+
+    } else {
+        unsigned char a = (moon.y * 255.0 / (target_h / 4.0f));
+        //printf("%d\n", a);
+        Color c = (Color){0, 0, 255, a};
+        ClearBackground(c);
+    }
+
+    // draw sun
+    if (is_day) {
+        DrawRectangleRec(sun, YELLOW);
+    } else {
+        DrawRectangleRec(moon, GRAY);
+    }
+
+    // draw grass tiles
     float src_w = txinfo[TX_GRASS_00].width;
     float src_h = txinfo[TX_GRASS_00].height;
     src = {0, 0, src_w, src_h};
@@ -1663,6 +1694,23 @@ void update_level_up() {
     }
 }
 
+
+void update_state_sun_moon() {
+    if (is_day) {
+        sun.y += SUN_VELO;
+    } else {
+        moon.y += MOON_VELO;
+    }
+
+    if (sun.y > target_h / 4.0f) {
+        is_day = false;
+        sun.y = 0;
+    } else if (moon.y > target_h / 4.0f) {
+        is_day = true;
+        moon.y = 0;
+    }
+}
+
 void update_state() {
 
     if (current_scene != SCENE_GAMEPLAY) return;
@@ -1681,6 +1729,7 @@ void update_state() {
     // perform entity cleanup based on the values in the 'destroy' table
     update_state_destroy();
     update_level_up();
+    update_state_sun_moon();
 }
 
 void load_soundfile(int index, const char* path) {
