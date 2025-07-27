@@ -7,16 +7,19 @@
 #include <raylib.h>
 #include <raymath.h>
 
+#define DEFAULT_ORCS_TO_CREATE 1
+#define RANDOM_ORC_SPEED_MOD_MAX 2
+#define DEFAULT_SPAWN_FREQ 300
+#define MERCHANT_ITEM_SELECTION_MAX 3
+
 #define ORC_SPAWN_X_RIGHT 150
 #define ORC_SPAWN_X_LEFT 42
 #define ORC_SPAWN_Y 57
-
-#define DEFAULT_ORCS_TO_CREATE 1
-
 #define HERO_VELO_X_DEFAULT 0.25f
 #define HERO_VELO_Y_DEFAULT 0.25f
 #define BASE_ORC_SPEED -0.20f
-#define RANDOM_ORC_SPEED_MOD_MAX 2
+#define COIN_VELO_X 0.1f
+#define DEFAULT_SPAWN_FREQ_INCR 30.0f
 
 #define SH_RED_GLOW 0
 #define SH_INVERT 1
@@ -26,7 +29,6 @@
 #define SH_BLUE_GLOW 5
 #define SH_DURABILITY_BLACK 6
 #define NUM_SHADERS 7
-
 
 #define NUM_TEXTURES 32
 #define NUM_SFX 32
@@ -52,12 +54,6 @@
 #define SFX_GET_HIT 2
 #define SFX_EQUIP 3
 #define SFX_COIN 4
-
-#define DEFAULT_SPAWN_FREQ 300
-
-#define MERCHANT_ITEM_SELECTION_MAX 3
-
-#define DEFAULT_SPAWN_FREQ_INCR 30.0f
 
 using std::map;
 using std::string;
@@ -689,9 +685,9 @@ bool create_coin(entityid id) {
     set_destroy(coin_id, false);
     Vector2 velo = get_velocity(id);
     if (velo.x < 0) {
-        set_velocity(coin_id, (Vector2){-0.1f, 0});
+        set_velocity(coin_id, (Vector2){-COIN_VELO_X, 0});
     } else {
-        set_velocity(coin_id, (Vector2){0.1f, 0});
+        set_velocity(coin_id, (Vector2){COIN_VELO_X, 0});
     }
     set_pos(coin_id, pos);
     coins_spawned++;
