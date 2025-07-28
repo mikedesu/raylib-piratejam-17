@@ -1396,17 +1396,6 @@ void draw_gameplay() {
             DrawTexturePro(txinfo[TX_HERO], src, dst, origin, 0.0f, c);
             EndShaderMode();
 
-            // test magnetism
-            int m = get_magnet(hero_id);
-            if (m > 0) {
-                Rectangle magnet_dst = dst;
-                magnet_dst.x -= (2 * m);
-                magnet_dst.y -= (2 * m);
-                magnet_dst.width += 4 * m;
-                magnet_dst.height += 4 * m;
-
-                DrawRectangleLinesEx(magnet_dst, 1.0f, RED);
-            }
 
         } else if (type == ENTITY_SWORD) {
             int txindex = TX_SWORD;
@@ -1710,6 +1699,44 @@ void spawn_drop(entityid id) {
     }
 }
 
+void update_state_magnet() {
+    int m = get_magnet(hero_id);
+    if (m <= 0) {
+        return;
+    }
+    Vector2 p = get_pos(hero_id);
+    Rectangle bounds = {p.x, p.y, 8, 8};
+    bounds.x -= 2 * m;
+    bounds.y -= 2 * m;
+    bounds.width += 4 * m;
+    bounds.height += 4 * m;
+
+    for (auto row : types) {
+        entityid id = row.first;
+        entity_type t = get_type(id);
+        if (t == ENTITY_COIN) {
+            // we are going to update coin's velocity
+            // so when the velocity update occurs,
+            // the coin is moving towards the player
+            // check if the coin is within the magnet bounds
+            Rectangle hb = get_hitbox(id);
+            if (CheckCollisionRecs(bounds, hb)) {
+                // calculate the direction vector from the coin to the player
+                Vector2 dir = {p.x - hb.x, p.y - hb.y};
+                float dist = sqrtf(dir.x * dir.x + dir.y * dir.y);
+                if (dist > 0) {
+                    // normalize the direction vector
+                    dir.x /= dist;
+                    dir.y /= dist;
+                    // set the velocity of the coin towards the player
+                    Vector2 v = {dir.x, dir.y};
+                    set_velocity(id, v);
+                }
+            }
+        }
+    }
+}
+
 void update_state_sword_collision() {
     // check for collision with sword
     Rectangle shb = get_hitbox(sword_id);
@@ -1845,6 +1872,8 @@ void update_state() {
     update_state_hero_hp();
     update_state_player_attack();
     update_state_velocity();
+    update_state_magnet();
+
     update_state_hero_collision();
     update_state_sword_collision();
     // perform entity cleanup based on the values in the 'destroy' table
