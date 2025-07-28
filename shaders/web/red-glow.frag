@@ -1,3 +1,5 @@
+precision mediump float;
+
 varying vec2 fragTexCoord;
 uniform sampler2D texture0;
 uniform float time; // For pulsing effect
