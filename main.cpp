@@ -1,11 +1,18 @@
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 #include <unordered_map>
 #include <map>
 #include <string>
 #include <vector>
 #include <raylib.h>
 #include <raymath.h>
+
+#define DEFAULT_ZOOM 8.0f
+#define WIN_W 1920
+#define WIN_H 1080
+#define TARGET_W 800
+#define TARGET_H 480
 
 #define GRASS_TILES_HIGH 4
 #define GRASS_TILES_WIDE 13
@@ -14,6 +21,7 @@
 #define MOON_VELO 0.01f
 
 #define DEFAULT_ORCS_TO_CREATE 1
+#define DEFAULT_BATS_TO_CREATE 1
 #define RANDOM_ORC_SPEED_MOD_MAX 2
 #define DEFAULT_SPAWN_FREQ 300
 #define MERCHANT_ITEM_SELECTION_MAX 3
@@ -22,8 +30,9 @@
 #define ORC_SPAWN_X_LEFT 42
 #define ORC_SPAWN_Y 57
 
-#define BAT_SPAWN_X 0
-#define BAT_SPAWN_Y 0
+#define BAT_SPAWN_X (TARGET_W / DEFAULT_ZOOM / 2.0f)
+#define BAT_SPAWN_Y (TARGET_H / DEFAULT_ZOOM / 2.0f)
+#define BAT_VELO_Y 0.20f
 
 #define HERO_VELO_X_DEFAULT 0.25f
 #define HERO_VELO_Y_DEFAULT 0.25f
@@ -135,15 +144,16 @@ bool create_dwarf_merchant();
 void randomize_merchant_items();
 
 const char* game_window_title = "evildojo666 presents: There can be...";
-int window_w = 1920;
-int window_h = 1080;
-int target_w = 800;
-int target_h = 480;
+int window_w = WIN_W;
+int window_h = WIN_H;
+
+int target_w = TARGET_W;
+int target_h = TARGET_H;
 int window_size_min_w = 320;
 int window_size_min_h = 240;
 int target_fps = 60;
 
-float default_zoom = 8;
+float default_zoom = DEFAULT_ZOOM;
 
 game_scene current_scene = SCENE_COMPANY;
 Color debug_txt_color = WHITE;
@@ -165,6 +175,8 @@ float base_orc_speed = BASE_ORC_SPEED;
 float current_orc_speed = BASE_ORC_SPEED;
 int random_orc_speed_mod_max = RANDOM_ORC_SPEED_MOD_MAX;
 int num_orcs_to_create = DEFAULT_ORCS_TO_CREATE;
+
+int num_bats_to_create = DEFAULT_BATS_TO_CREATE;
 int player_level = 1;
 bool levelup_flag = false;
 int base_coin_level_up_amount = 5;
@@ -224,6 +236,36 @@ item_type merchant_items[MERCHANT_ITEM_SELECTION_MAX] = {
 
 int grass_tiles[GRASS_TILES_HIGH][GRASS_TILES_WIDE];
 
+// structures for keeping track of the game's start time and the game's current time
+// use ctime
+time_t game_start_time;
+time_t game_current_time;
+int current_run_minutes = 0;
+int current_run_seconds = 0;
+
+void set_start_time() {
+    game_start_time = time(NULL);
+    //game_current_time =
+    //    game_start_time; // initialize current time to start time
+    //game_start_tm = localtime(&game_start_time);
+}
+
+void set_current_time() {
+    game_current_time = time(NULL);
+    //game_current_tm = localtime(&game_current_time);
+}
+
+void set_diff_time() {
+    set_current_time();
+    // calculate the difference in seconds
+    double diff_seconds = difftime(game_current_time, game_start_time);
+    // convert to minutes and seconds
+    int minutes = (int)(diff_seconds / 60);
+    int seconds = (int)(diff_seconds - (minutes * 60));
+    current_run_minutes = minutes;
+    current_run_seconds = seconds;
+}
+
 
 void load_grass_tiles() {
     for (int i = 0; i < GRASS_TILES_HIGH; i++) {
@@ -236,6 +278,8 @@ void load_grass_tiles() {
 
 
 void init_data() {
+    set_start_time();
+    set_diff_time();
     if (!create_player() || !create_sword()) {
         fprintf(stderr, "Failed to create player or sword entity\n");
         exit(EXIT_FAILURE);
@@ -327,6 +371,11 @@ void cleanup_data() {
     enemies_killed = 0;
     base_orc_speed = BASE_ORC_SPEED;
     num_orcs_to_create = DEFAULT_ORCS_TO_CREATE;
+    num_bats_to_create = DEFAULT_BATS_TO_CREATE;
+    enemies_spawned = 0;
+    enemies_missed = 0;
+    //total_enemies_killed = 0;
+    total_enemies_killed += enemies_killed;
 
     load_grass_tiles();
 }
@@ -637,23 +686,21 @@ bool create_sword() {
 bool create_bat() {
     entityid id = add_entity();
     if (id == ENTITYID_INVALID) return false;
-    set_name(id, "bat");
-    set_type(id, ENTITY_BAT);
-    int txkey = TX_ORC;
+    int txkey = TX_BAT;
     float w = txinfo[txkey].width;
     float h = txinfo[txkey].height;
     Rectangle src = {0, 0, w, h};
-    float xpos = target_w / 2.0f;
-    float ypos = target_h / 8.0f;
-    Vector2 p = {xpos, ypos};
+    float x = BAT_SPAWN_X + w * GetRandomValue(0, 8);
+    float y = BAT_SPAWN_Y - h;
+    Vector2 p = {x, y};
     Rectangle hitbox = {p.x, p.y, w, h};
+    Vector2 v = {0, BAT_VELO_Y};
+    set_name(id, "bat");
+    set_type(id, ENTITY_BAT);
     set_src(id, src);
     set_pos(id, p);
     set_hitbox(id, hitbox);
-
-    Vector2 v = {0, 0.20f};
     set_velocity(id, v);
-
     set_collides(id, true);
     set_destroy(id, false);
     set_hp(id, (Vector2){1.0f, 1.0f});
@@ -917,13 +964,32 @@ void handle_input() {
 }
 
 void draw_hud() {
-    int x = 10, y = 10, s = 30;
+    int x = 10;
+    int y = 10;
+    int s = 30;
     Color c = WHITE;
-    DrawText(TextFormat("Level: %d Coins: %d", player_level, current_coins),
+    //DrawText(TextFormat("Level: %d Coins: %d Play Time: %d:%02d ",
+    //                    player_level,
+    //                    current_coins,
+    //                    current_run_minutes,
+    //                    current_run_seconds),
+    //         x,
+    //         y,
+    //         s,
+    //         c);
+
+    DrawText(TextFormat("Level: %d Play Time: %d:%02d ",
+                        player_level,
+                        current_run_minutes,
+                        current_run_seconds),
              x,
              y,
              s,
              c);
+
+    y += s + 10;
+
+    DrawText(TextFormat("Coins: %d", current_coins), x, y, s, c);
 }
 
 void draw_debug_panel() {
@@ -1357,6 +1423,10 @@ void draw_gameplay() {
             DrawTexturePro(txinfo[txindex], src, dst, origin, 0.0f, c);
             EndShaderMode();
         } else if (type == ENTITY_ORC) {
+            Vector2 mydir = get_dir(id);
+            if (mydir.x != 0) {
+                src.width *= mydir.x;
+            }
             DrawTexturePro(txinfo[TX_ORC], src, dst, origin, 0.0f, c);
         } else if (type == ENTITY_COIN) {
             DrawTexturePro(txinfo[TX_COIN], src, dst, origin, 0.0f, c);
@@ -1366,6 +1436,8 @@ void draw_gameplay() {
         } else if (type == ENTITY_HEALTH_REPLENISH) {
             DrawTexturePro(
                 txinfo[TX_HEALTH_REPLENISH], src, dst, origin, 0.0f, WHITE);
+        } else if (type == ENTITY_BAT) {
+            DrawTexturePro(txinfo[TX_BAT], src, dst, origin, 0.0f, c);
         }
     }
     //x = target_w / 16.0f + w / 2;
@@ -1513,34 +1585,37 @@ void update_state_velocity() {
     // velocity-position update
     for (auto row : component_table) {
         // skip the hero
-        if (row.first == hero_id) continue;
-        if (has_comp(row.first, C_VELOCITY)) {
-            Vector2 p = get_pos(row.first);
-            Vector2 v = get_velocity(row.first);
-            Rectangle hb = get_hitbox(row.first);
+        entityid id = row.first;
+        if (id == hero_id) continue;
+        if (has_comp(id, C_VELOCITY)) {
+            Vector2 p = get_pos(id);
+            Vector2 v = get_velocity(id);
+            Rectangle hb = get_hitbox(id);
+            entity_type t = get_type(id);
             p.x += v.x;
             p.y += v.y;
-            set_pos(row.first, p);
             hb.x += v.x;
             hb.y += v.y;
-            set_hitbox(row.first, hb);
+            set_pos(id, p);
+            set_hitbox(id, hb);
             // if the p.x is < 0, mark for destroy. also this might be gameover if an enemy hits the left
             if (p.x <= ORC_SPAWN_X_LEFT || p.x > ORC_SPAWN_X_RIGHT) {
-                set_destroy(row.first, true);
-                entity_type t = get_type(row.first);
+                set_destroy(id, true);
                 if (t == ENTITY_ORC) {
                     enemies_missed++;
                 } else if (t == ENTITY_COIN) {
                     coins_lost++;
                 } else if (t == ENTITY_DWARF_MERCHANT) {
-                    // we want to spawn again
                     do_spawn_merchant = true;
                 }
             }
 
-            //else if (p.y > target_h / default_zoom) {
-            //
-            //            }
+            if (t == ENTITY_BAT) {
+                if (p.y > BAT_SPAWN_Y + TARGET_H) {
+                    set_destroy(id, true);
+                    enemies_missed++;
+                }
+            }
         }
     }
 }
@@ -1556,13 +1631,14 @@ void update_state_hero_collision() {
     // check for collision with hero
     for (auto row : component_table) {
         entity_type t = get_type(row.first);
-        if (t == ENTITY_ORC && CheckCollisionRecs(hb, get_hitbox(row.first))) {
+        if ((t == ENTITY_ORC || t == ENTITY_BAT) &&
+            CheckCollisionRecs(hb, get_hitbox(row.first))) {
             hero_collision_counter++;
             hero_total_damage_received++;
             set_destroy(row.first, true);
             decr_hp(hero_id, 1);
             enemies_killed++;
-            total_enemies_killed++;
+            //total_enemies_killed++;
             PlaySound(sfx[SFX_GET_HIT]);
         } else if (t == ENTITY_COIN &&
                    CheckCollisionRecs(hb, get_hitbox(row.first))) {
@@ -1596,14 +1672,15 @@ bool hero_health_maxed() {
 void spawn_drop(entityid id) {
     if (hero_health_maxed()) {
         create_coin(id); // create a coin at the orc's position
+        return;
+    }
+    // 1-4 chance of heart or coin
+    //#define DEFAULT_HEALTH_REPLENISH_SPAWN_CHANCE 4
+    int r = GetRandomValue(0, 3);
+    if (!r) {
+        create_health_replenish(id);
     } else {
-        // 1-4 chance of heart or coin
-        int r = GetRandomValue(0, 3);
-        if (r == 3) {
-            create_health_replenish(id);
-        } else {
-            create_coin(id);
-        }
+        create_coin(id);
     }
 }
 
@@ -1613,15 +1690,25 @@ void update_state_sword_collision() {
     Vector2 dura = get_durability(sword_id);
     if (player_attacking) {
         for (auto row : component_table) {
-            if (get_type(row.first) == ENTITY_ORC &&
-                CheckCollisionRecs(shb, get_hitbox(row.first))) {
+            entityid id = row.first;
+            entity_type t = get_type(id);
+            bool type_check = (t == ENTITY_ORC || t == ENTITY_BAT);
+            bool collides = CheckCollisionRecs(shb, get_hitbox(id));
+            if (type_check && collides) {
                 sword_collision_counter++;
-                set_destroy(row.first, true);
-                PlaySound(sfx[SFX_HIT]);
-                spawn_drop(row.first); // create a coin at the orc's position
 
-                enemies_killed++;
-                total_enemies_killed++;
+                Vector2 enemy_hp = get_hp(id);
+                enemy_hp.x--;
+                if (enemy_hp.x <= 0) {
+                    set_destroy(id, true);
+
+                    if (t == ENTITY_ORC) {
+                        spawn_drop(id); // create a coin at the orc's position
+                    }
+                    enemies_killed++;
+                    //total_enemies_killed++;
+                }
+                PlaySound(sfx[SFX_HIT]);
                 dura.x--;
                 if (dura.x <= 0) {
                     player_attacking = false;
@@ -1668,21 +1755,27 @@ void handle_level_up() {
         player_level++;
         levelup_flag = false;
         spawn_freq -= spawn_freq_incr; // increase spawn frequency
-        if (spawn_freq < 30) {
-            spawn_freq = 30.0f;
+
+        if (spawn_freq < 15) {
+            spawn_freq = 15.0f;
+        } else if (spawn_freq < 30) {
+            spawn_freq_incr = 1.0f;
         } else if (spawn_freq < 60) {
             spawn_freq_incr = 5.0f;
         }
 
         if (player_level >= 2) {
             num_orcs_to_create = 2;
+            num_bats_to_create = 1;
         }
 
         if (player_level >= 5) {
             num_orcs_to_create = 3;
+            num_bats_to_create = 1;
         }
         if (player_level >= 10) {
             num_orcs_to_create = 4;
+            num_bats_to_create = 2;
         }
 
         //current_orc_speed = base_orc_speed - player_level * 0.05f; // increase orc speed
@@ -1690,7 +1783,6 @@ void handle_level_up() {
 }
 
 void update_level_up() {
-    //if (coins_collected >= base_coin_level_up_amount * player_level && !levelup_flag && !do_spawn_merchant) {
     if (current_coins >= base_coin_level_up_amount * player_level &&
         !do_spawn_merchant && !merchant_spawned) {
         do_spawn_merchant = true;
@@ -1730,6 +1822,12 @@ void update_state() {
         for (int i = 0; i < num_orcs_to_create; i++) {
             create_orc();
         }
+
+        if (!is_day) {
+            for (int i = 0; i < num_bats_to_create; i++) {
+                create_bat();
+            }
+        }
     }
 
     update_state_hero_hp();
@@ -1741,6 +1839,8 @@ void update_state() {
     update_state_destroy();
     update_level_up();
     update_state_sun_moon();
+
+    set_diff_time();
 }
 
 void load_soundfile(int index, const char* path) {
@@ -1788,6 +1888,7 @@ void unload_soundfiles() {
 }
 
 int main() {
+
     init_gfx();
     init_sound();
     cleanup_data();
@@ -1795,6 +1896,8 @@ int main() {
         handle_input();
         update_state();
         draw_frame();
+
+        set_diff_time();
     }
     unload_textures();
     unload_soundfiles();
