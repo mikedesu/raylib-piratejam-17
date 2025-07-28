@@ -7,3 +7,7 @@ sfx/*
 music
 *.png
 .aider*
+*.html
+*.wasm
+*.js
+*.data

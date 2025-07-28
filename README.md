@@ -91,18 +91,22 @@ Each orc only has 1 HP, but I want to experiment with some ideas:
 7/27/2025
 
 - need to make dwarfs 5-laned
-- need bats coming in from top
-  - need sword up/down first
-- need gameover stats display
+- need bats coming in from top (DONE)
+  - need sword up/down first (DONE)
+- need gameover stats display (DONE)
     - enemies killed/missed/percentages
     - coins collected/missed/spent
     - etc
 
+7/28/2025
 
-
-
-
-
+- WEB BUILD!!!
+- DESIGN DOC!!!
+- boss orc / big orc with lots of hp
+- diagonal swords?
+- sword attack power power up
+- finish tutorial screen 
+- "you died" screen before game over screen
 
 
 

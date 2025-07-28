@@ -8,6 +8,10 @@
 #include <raylib.h>
 #include <raymath.h>
 
+#ifdef WEB_BUILD
+#include <emscripten/emscripten.h>
+#endif
+
 #define DEFAULT_ZOOM 8.0f
 #define WIN_W 1920
 #define WIN_H 1080
@@ -276,18 +280,30 @@ void load_shader(int index, const char* path) {
     shaders[index] = LoadShader(0, TextFormat("shaders/%s.frag", path));
     if (shaders[index].id == 0) {
         fprintf(stderr, "Failed to load shader: %s\n", path);
+        // does raylib offer any more error info?
         exit(EXIT_FAILURE);
     }
 }
 
 void load_shaders() {
-    load_shader(SH_RED_GLOW, "red-glow");
-    load_shader(SH_INTENSE_RED_GLOW, "intense-red-glow");
-    load_shader(SH_INVERT, "invert");
-    load_shader(SH_BLACK_GLOW, "black-glow");
-    load_shader(SH_HP_RED_GLOW, "hp-red-glow");
-    load_shader(SH_BLUE_GLOW, "blue-glow");
-    load_shader(SH_DURABILITY_BLACK, "durability-black");
+
+#ifdef WEB_BUILD
+    load_shader(SH_RED_GLOW, "web/red-glow");
+    load_shader(SH_INTENSE_RED_GLOW, "web/intense-red-glow");
+    load_shader(SH_INVERT, "web/invert");
+    load_shader(SH_BLACK_GLOW, "web/black-glow");
+    load_shader(SH_HP_RED_GLOW, "web/hp-red-glow");
+    load_shader(SH_BLUE_GLOW, "web/blue-glow");
+    load_shader(SH_DURABILITY_BLACK, "web/durability-black");
+#else
+    load_shader(SH_RED_GLOW, "desktop/red-glow");
+    load_shader(SH_INTENSE_RED_GLOW, "desktop/intense-red-glow");
+    load_shader(SH_INVERT, "desktop/invert");
+    load_shader(SH_BLACK_GLOW, "desktop/black-glow");
+    load_shader(SH_HP_RED_GLOW, "desktop/hp-red-glow");
+    load_shader(SH_BLUE_GLOW, "desktop/blue-glow");
+    load_shader(SH_DURABILITY_BLACK, "desktop/durability-black");
+#endif
 }
 
 void unload_shaders() {
@@ -1820,7 +1836,7 @@ void init_sound() {
         exit(EXIT_FAILURE);
     }
     // Set music volume
-    PlayMusicStream(music);
+    //PlayMusicStream(music);
 }
 
 void unload_soundfile(int index) {
@@ -1840,17 +1856,31 @@ void unload_soundfiles() {
     unload_soundfile(SFX_COIN);
 }
 
+
+void gameloop() {
+    handle_input();
+    update_state();
+    draw_frame();
+    set_diff_time();
+}
+
+
 int main() {
     init_gfx();
     init_sound();
     cleanup_data();
-    while (!WindowShouldClose()) {
-        handle_input();
-        update_state();
-        draw_frame();
 
-        set_diff_time();
+
+    // Web build
+#ifdef WEB_BUILD
+    emscripten_set_main_loop(gameloop, 0, 1);
+#else
+    // Desktop build
+    while (!WindowShouldClose()) {
+        gameloop();
     }
+#endif
+
     unload_textures();
     unload_soundfiles();
     CloseAudioDevice();
