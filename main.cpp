@@ -1027,15 +1027,30 @@ void draw_hud() {
 
 void draw_tutorial() {
     ClearBackground(WHITE);
-    int x = target_w / 2.0f;
-    int y = target_h / 8.0f;
+#define TARGET_W_2 (TARGET_W / 2.0f)
+#define TARGET_H_8 (TARGET_H / 8.0f)
+    //int x0 = target_w / 2.0f;
+    int x0 = TARGET_W_2;
+    int x = x0;
     int s = 30;
+    int y = TARGET_H_8 - s;
+    int m = 0;
+    int pad = 10;
+    //y -= s;
     Color c = BLACK;
-    const char* text = "Tutorial";
-    int m = MeasureText(text, s);
-    x -= m / 2;
-    y -= s;
-    DrawText(text, x, y, s, c);
+    //const char* text = "Tutorial";
+    const char* texts[5] = {"Tutorial",
+                            "Use arrow keys to move",
+                            "Press A to attack",
+                            "Collect coins to level up",
+                            "Press A or ENTER to continue"};
+
+    for (int i = 0; i < 5; i++) {
+        m = MeasureText(texts[i], s);
+        x = TARGET_W_2 - m / 2.0f;
+        DrawText(texts[i], x, y, s, c);
+        y += s + pad;
+    }
 }
 
 void draw_debug_panel() {
