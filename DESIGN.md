@@ -1,4 +1,9 @@
-# There Can Be... Design Document
+# There Can Be... 
+
+## Design Document
+
+### For PirateJam 17
+
 *Last Updated: 2025-07-28*
 
 ## Game Concept
@@ -43,7 +48,7 @@ unordered_map<entityid, Vector2> positions;
 
 ### Controls
 - **Arrow Keys**: Move hero (4-way)  
-- **A Button**: Sword attack (direction-aware)
+- **A Button**: Sword attack (direction-aware), confirm/select
 - **Enter**: Confirm/select  
 
 ### Upgrade System
@@ -55,32 +60,31 @@ Merchant offers 3 random upgrades per visit:
 
 ### Enemy Types  
 
-| Type       | HP | Movement                  | Spawn Condition |
-|------------|----|---------------------------|------------------|
-| Orc        | 1  | Horizontal runner         | Always           |  
-| Bat        | 1  | Vertical dive             | Nighttime only   |
-| Orc Boss   | 5  | Slow, heavy horizontal    | Levels 15+       |
+| Type       | HP | Movement                  | Spawn Condition  | Implemented? |
+|------------|----|---------------------------|------------------|--------------|
+| Orc        | 1  | Horizontal runner         | Always           | Yes          |
+| Bat        | 1  | Vertical dive             | Nighttime only   | Yes          |
+| Orc Boss   | 5  | Slow, heavy horizontal    | Levels 15+       | No           |
 
 ### Day/Night Cycle
-- **Day**: Orcs spawn normally  
+- **Day**: Orcs spawn normally
 - **Night**: Bats spawn, 50% faster enemy speed  
-- Visual shaders transition sky colors
+- Sky color calculated based on position of sun / moon
 
 ## Roadmap
 
 ### Planned Features
 
-**v1.1**
 - Diagonal sword attacks  
 - Screen-clearing bomb item  
 - Combo counter visual  
-
-**v1.2**  
+- Magnetic item powerup
+- Shield powerup  
 - Persistent high scores  
-- New enemy: Golem (high HP, slow)  
-- Shield power-up  
-
-**v1.3**
+- New enemies
+    - Golem 
+    - Zombie
+    - Wisp
 - Procedural music system  
 - Particle effects  
 - Localization support  
@@ -95,15 +99,15 @@ Key tunable values from `main.cpp`:
 #define HERO_VELO_X_DEFAULT 0.25f  
 #define BASE_ORC_SPEED -0.20f
 #define DEFAULT_SPAWN_FREQ 300
+// etc...
 
 // Economy
 #define BASE_COIN_LEVEL_UP_AMOUNT 5
 #define MERCHANT_ITEM_SELECTION_MAX 3
+// etc...
 ```
 
 ## Troubleshooting
 
 **Known Issues:**
 - Web build audio latency  
-- Memory leak on scene transitions  
-- Rare collision detection glitches

@@ -1312,6 +1312,7 @@ void draw_gameplay_grass() {
     }
 }
 
+// TODO: optimize
 void draw_gameplay_sky() {
     if (is_day) {
         unsigned char a = 255 - (sun.y * 255.0 / (target_h / 4.0f));
