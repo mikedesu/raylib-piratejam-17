@@ -132,6 +132,7 @@ typedef enum
     SCENE_GAMEPLAY,
     SCENE_GAMEOVER,
     SCENE_MERCHANT,
+    SCENE_TUTORIAL,
     SCENE_COUNT
 } game_scene;
 
@@ -185,6 +186,10 @@ bool do_spawn_merchant = false;
 bool merchant_spawned = false;
 bool gameover = false;
 
+int last_dir_key_pressed = KEY_RIGHT;
+
+int highest_level_reached = 1;
+
 Texture2D txinfo[NUM_TEXTURES];
 Sound sfx[NUM_SFX];
 Music music = {0};
@@ -226,6 +231,7 @@ int continues = 0;
 float starting_sword_durability = 1.0f;
 float current_sword_durability = 1.0f;
 bool is_day = true;
+bool first_time_playing = true;
 
 Rectangle sun = {target_w / 8.0f, target_h / 4.0f, 8, 8};
 Rectangle moon = {target_w / 8.0f, target_h / 4.0f, 8, 8};
@@ -245,21 +251,15 @@ int current_run_seconds = 0;
 
 void set_start_time() {
     game_start_time = time(NULL);
-    //game_current_time =
-    //    game_start_time; // initialize current time to start time
-    //game_start_tm = localtime(&game_start_time);
 }
 
 void set_current_time() {
     game_current_time = time(NULL);
-    //game_current_tm = localtime(&game_current_time);
 }
 
 void set_diff_time() {
     set_current_time();
-    // calculate the difference in seconds
     double diff_seconds = difftime(game_current_time, game_start_time);
-    // convert to minutes and seconds
     int minutes = (int)(diff_seconds / 60);
     int seconds = (int)(diff_seconds - (minutes * 60));
     current_run_minutes = minutes;
@@ -268,12 +268,9 @@ void set_diff_time() {
 
 
 void load_grass_tiles() {
-    for (int i = 0; i < GRASS_TILES_HIGH; i++) {
-        for (int j = 0; j < GRASS_TILES_WIDE; j++) {
-            int tile = GetRandomValue(0, 3) + TX_GRASS_00;
-            grass_tiles[i][j] = tile;
-        }
-    }
+    for (int i = 0; i < GRASS_TILES_HIGH; i++)
+        for (int j = 0; j < GRASS_TILES_WIDE; j++)
+            grass_tiles[i][j] = GetRandomValue(0, 3) + TX_GRASS_00;
 }
 
 
@@ -305,11 +302,8 @@ void load_shaders() {
 }
 
 void unload_shaders() {
-    for (int i = 0; i < NUM_SHADERS; i++) {
-        if (shaders[i].id != 0) {
-            UnloadShader(shaders[i]);
-        }
-    }
+    for (int i = 0; i < NUM_SHADERS; i++)
+        if (shaders[i].id != 0) UnloadShader(shaders[i]);
 }
 
 
@@ -376,8 +370,11 @@ void cleanup_data() {
     enemies_missed = 0;
     //total_enemies_killed = 0;
     total_enemies_killed += enemies_killed;
-
     load_grass_tiles();
+    is_day = true;
+
+    sun = {target_w / 8.0f, target_h / 4.0f, 8, 8};
+    moon = {target_w / 8.0f, target_h / 4.0f, 8, 8};
 }
 
 bool entity_exists(entityid id) {
@@ -813,57 +810,84 @@ bool create_health_replenish(entityid id) {
     set_hitbox(heart_id, hitbox);
     set_collides(heart_id, true);
     set_destroy(heart_id, false);
-    set_velocity(heart_id, (Vector2){-0.1f, 0});
+    Vector2 velo = get_velocity(id);
+    if (velo.x < 0) {
+        set_velocity(heart_id, (Vector2){-COIN_VELO_X, 0});
+    } else {
+        set_velocity(heart_id, (Vector2){COIN_VELO_X, 0});
+    }
+
     set_pos(heart_id, pos);
     return true;
 }
 
 void handle_input_gameplay() {
+    Vector2 p = get_pos(hero_id);
     Vector2 velocity = get_velocity(hero_id);
     float vx = velocity.x; // use the x component for movement speed
     float vy = velocity.y; // use the y component for movement speed
     if (IsKeyDown(KEY_LEFT)) {
-        update_x_pos(hero_id, -vx);
-        update_hitbox_x(hero_id, -vx);
-        Vector2 d = get_dir(hero_id);
-        d.x = -1;
-        set_dir(hero_id, d);
-        set_dir(sword_id, d);
+        //if (p.x > BAT_SPAWN_X) {
+        if (p.x > ORC_SPAWN_X_LEFT) {
+            update_x_pos(hero_id, -vx);
+            update_hitbox_x(hero_id, -vx);
+
+            Vector2 d = get_dir(hero_id);
+            d.x = -1;
+
+            set_dir(hero_id, d);
+            set_dir(sword_id, d);
+            last_dir_key_pressed = KEY_LEFT;
+        }
     }
     if (IsKeyDown(KEY_RIGHT)) {
-        update_x_pos(hero_id, vx);
-        update_hitbox_x(hero_id, vx);
-        Vector2 d = get_dir(hero_id);
-        d.x = 1;
-        set_dir(hero_id, d);
-        set_dir(sword_id, d);
+        if (p.x < ORC_SPAWN_X_RIGHT - 7) {
+            update_x_pos(hero_id, vx);
+            update_hitbox_x(hero_id, vx);
+            Vector2 d = get_dir(hero_id);
+            d.x = 1;
+            set_dir(hero_id, d);
+            set_dir(sword_id, d);
+            last_dir_key_pressed = KEY_RIGHT;
+        }
     }
+
     if (IsKeyDown(KEY_UP)) {
-        update_y_pos(hero_id, -vy);
-        update_hitbox_y(hero_id, -vy);
-        Vector2 d = get_dir(hero_id);
-        d.y = -1;
-        set_dir(hero_id, d);
-        set_dir(sword_id, d);
-    } else if (IsKeyUp(KEY_UP)) {
-        Vector2 d = get_dir(hero_id);
-        d.y = 0;
-        set_dir(hero_id, d);
-        set_dir(sword_id, d);
+        if (p.y > BAT_SPAWN_Y) {
+            update_y_pos(hero_id, -vy);
+            update_hitbox_y(hero_id, -vy);
+            Vector2 d = get_dir(hero_id);
+            d.y = -1;
+            set_dir(hero_id, d);
+            set_dir(sword_id, d);
+            last_dir_key_pressed = KEY_UP;
+        }
     }
+    //else if (IsKeyUp(KEY_UP)) {
+    //    Vector2 d = get_dir(hero_id);
+    //    d.y = 0;
+    //    set_dir(hero_id, d);
+    //    set_dir(sword_id, d);
+    //}
+
     if (IsKeyDown(KEY_DOWN)) {
-        update_y_pos(hero_id, vy);
-        update_hitbox_y(hero_id, vy);
-        Vector2 d = get_dir(hero_id);
-        d.y = 1;
-        set_dir(hero_id, d);
-        set_dir(sword_id, d);
-    } else if (IsKeyUp(KEY_UP)) {
-        Vector2 d = get_dir(hero_id);
-        d.y = 0;
-        set_dir(hero_id, d);
-        set_dir(sword_id, d);
+        if (p.y < BAT_SPAWN_Y - 8 + TARGET_H / DEFAULT_ZOOM) {
+            update_y_pos(hero_id, vy);
+            update_hitbox_y(hero_id, vy);
+            Vector2 d = get_dir(hero_id);
+            d.y = 1;
+            set_dir(hero_id, d);
+            set_dir(sword_id, d);
+            last_dir_key_pressed = KEY_DOWN;
+        }
     }
+    //else if (IsKeyUp(KEY_UP)) {
+    //    Vector2 d = get_dir(hero_id);
+    //    d.y = 0;
+    //    set_dir(hero_id, d);
+    //    set_dir(sword_id, d);
+    //}
+
     if (IsKeyPressed(KEY_A)) {
         player_attacking = true;
         set_durability(
@@ -885,11 +909,29 @@ void handle_input_company() {
 
 void handle_input_title() {
     if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_A)) {
+
+        if (!first_time_playing) {
+            current_scene = SCENE_GAMEPLAY;
+            debug_txt_color = WHITE;
+            init_data(); // reset data for new game
+            //first_time_playing = false;
+        } else {
+            current_scene = SCENE_TUTORIAL;
+            debug_txt_color = BLACK;
+        }
+        gameover = false;
+        PlaySound(sfx[SFX_CONFIRM]);
+    }
+}
+
+void handle_input_tutorial() {
+    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_A)) {
         current_scene = SCENE_GAMEPLAY;
         debug_txt_color = WHITE;
         gameover = false;
         PlaySound(sfx[SFX_CONFIRM]);
         init_data(); // reset data for new game
+        first_time_playing = false;
     }
 }
 
@@ -899,6 +941,7 @@ void handle_input_gameover() {
         current_scene = SCENE_TITLE;
         debug_txt_color = BLACK;
         PlaySound(sfx[SFX_CONFIRM]);
+        highest_level_reached = player_level;
         cleanup_data(); // reset data for new game
         continues++;
     }
@@ -961,6 +1004,8 @@ void handle_input() {
         handle_input_gameover();
     else if (current_scene == SCENE_MERCHANT)
         handle_input_merchant();
+    else if (current_scene == SCENE_TUTORIAL)
+        handle_input_tutorial();
 }
 
 void draw_hud() {
@@ -990,6 +1035,24 @@ void draw_hud() {
     y += s + 10;
 
     DrawText(TextFormat("Coins: %d", current_coins), x, y, s, c);
+}
+
+
+void draw_tutorial() {
+    ClearBackground(WHITE);
+
+    int x = target_w / 2.0f;
+    int y = target_h / 8.0f;
+    int s = 30;
+    Color c = BLACK;
+
+    const char* text = "Tutorial";
+    int m = MeasureText(text, s);
+
+    x -= m / 2;
+    y -= s;
+
+    DrawText(text, x, y, s, c);
 }
 
 void draw_debug_panel() {
@@ -1144,14 +1207,28 @@ void draw_gameover() {
     int m = MeasureText(text, s);
     int x = target_w / 2 - m / 2;
     int y = target_h / 8 - s;
+    int p = 10;
     Color c = {0xFF, 0, 0, 255};
     DrawText(text, x, y, s, c);
     // we want to draw some text representing stats from the
     // most recent playthrough
     // lets start with displaying how many enemies you killed
     c = WHITE;
-    y += s + 10;
+    y += s + p;
     s = 20;
+
+    text = TextFormat("Level reached: %d", player_level);
+    m = MeasureText(text, s);
+    x = target_w / 2 - m / 2;
+    DrawText(text, x, y, s, c);
+    y += s + p;
+    text = TextFormat("Highest level reached: %d", highest_level_reached);
+    m = MeasureText(text, s);
+    x = target_w / 2 - m / 2;
+    DrawText(text, x, y, s, c);
+    y += s + p;
+
+
     text = TextFormat("Enemies killed/spawned: %d/%d (%0.2f%)",
                       enemies_killed,
                       enemies_spawned,
@@ -1164,7 +1241,7 @@ void draw_gameover() {
     //m = MeasureText(text, s);
     //x = target_w / 2 - m / 2;
     //DrawText(text, x, y, s, c);
-    y += s + 10;
+    y += s + p;
     text = TextFormat("Enemies missed/spawned: %d/%d (%0.2f%)",
                       enemies_missed,
                       enemies_spawned,
@@ -1184,7 +1261,7 @@ void draw_gameover() {
     //m = MeasureText(text, s);
     //x = target_w / 2 - m / 2;
     //DrawText(text, x, y, s, c);
-    y += s + 10;
+    y += s + p;
     text = TextFormat("Coins collected/spawned: %d/%d (%0.2f%)",
                       coins_collected,
                       coins_spawned,
@@ -1192,16 +1269,17 @@ void draw_gameover() {
     m = MeasureText(text, s);
     x = target_w / 2 - m / 2;
     DrawText(text, x, y, s, c);
-    y += s + 10;
+    y += s + p;
     text = TextFormat("Coins missed: %d", coins_lost);
     m = MeasureText(text, s);
     x = target_w / 2 - m / 2;
     DrawText(text, x, y, s, c);
-    y += s + 10;
+    y += s + p;
     text = TextFormat("Coins spent: %d", coins_spent);
     m = MeasureText(text, s);
     x = target_w / 2 - m / 2;
     DrawText(text, x, y, s, c);
+    y += s + p;
     //EndTextureMode();
     EndDrawing();
     frame_updates++;
@@ -1325,6 +1403,14 @@ void draw_gameplay_sky() {
     }
 }
 
+void draw_gameplay_sun_moon() {
+    if (is_day) {
+        DrawRectangleRec(sun, YELLOW);
+    } else {
+        DrawRectangleRec(moon, GRAY);
+    }
+}
+
 void draw_gameplay() {
     BeginMode2D(cam2d);
     Vector2 pos = get_pos(hero_id);
@@ -1336,44 +1422,16 @@ void draw_gameplay() {
     float h = target_h / 8.0f;
     x = target_w / 16.0f;
     w = target_w / 8.0f;
-    //if (is_day) {
-    //    unsigned char a = 255 - (sun.y * 255.0 / (target_h / 4.0f));
-    //    Color c = (Color){0, 0, 255, a};
-    //    ClearBackground(c);
-    //} else {
-    //    unsigned char a = (moon.y * 255.0 / (target_h / 4.0f));
-    //    Color c = (Color){0, 0, 255, a};
-    //    ClearBackground(c);
-    //}
 
     draw_gameplay_sky();
-    // draw sun
-    if (is_day) {
-        DrawRectangleRec(sun, YELLOW);
-    } else {
-        DrawRectangleRec(moon, GRAY);
-    }
-    // draw grass tiles
-    //float src_w = txinfo[TX_GRASS_00].width;
-    //float src_h = txinfo[TX_GRASS_00].height;
-    //src = {0, 0, src_w, src_h};
-    //y += 32;
-    //for (int j = 0; j < GRASS_TILES_HIGH; j++) {
-    //    Rectangle dst = {x, y, src_w, src_h};
-    //    for (int i = 0; i < GRASS_TILES_WIDE; i++) {
-    //        //DrawTexturePro(txinfo[TX_GRASS_00], src, dst, origin, 0.0f, WHITE);
-    //        DrawTexturePro(
-    //            txinfo[grass_tiles[j][i]], src, dst, origin, 0.0f, WHITE);
-    //        dst.x += src_w;
-    //    }
-    //    y += src_h;
-    //}
+    draw_gameplay_sun_moon();
     draw_gameplay_grass();
 
     for (auto it : component_table) {
         entityid id = it.first;
         if (!has_comp(id, C_POSITION)) continue;
         Vector2 pos = get_pos(id);
+        Rectangle hb = get_hitbox(id);
         if (pos.x < 0 || pos.y < 0) continue;
         entity_type type = get_type(id);
         Rectangle src = get_src(id);
@@ -1396,7 +1454,7 @@ void draw_gameplay() {
             DrawTexturePro(txinfo[TX_HERO], src, dst, origin, 0.0f, c);
             EndShaderMode();
         } else if (type == ENTITY_SWORD) {
-            Vector2 mydir = get_dir(sword_id);
+            //Vector2 mydir = get_dir(sword_id);
             int txindex = TX_SWORD;
             //if (mydir.y == -1) {
             //    txindex = TX_SWORD_UP;
@@ -1406,9 +1464,29 @@ void draw_gameplay() {
             //    dst = {spos.x, spos.y, src.width, src.height};
             //}
             //else
-            if (mydir.x != 0) {
-                src.width *= mydir.x;
+
+            //if (mydir.x != 0) {
+            //    src.width *= mydir.x;
+            //}
+            //
+            if (last_dir_key_pressed == KEY_LEFT) {
+                src.width *= -1;
+            } else if (last_dir_key_pressed == KEY_UP) {
+                txindex = TX_SWORD_UP;
+                src = {0,
+                       0,
+                       txinfo[txindex].width / 1.0f,
+                       txinfo[txindex].height / 1.0f};
+                dst = {pos.x, pos.y, src.width, src.height};
+            } else if (last_dir_key_pressed == KEY_DOWN) {
+                txindex = TX_SWORD_UP;
+                src = {0,
+                       0,
+                       txinfo[txindex].width / 1.0f,
+                       -txinfo[txindex].height / 1.0f};
+                dst = {pos.x, pos.y, src.width, src.height};
             }
+
             dst.width *= get_size(sword_id);
             dst.height *= get_size(sword_id);
             int index = SH_DURABILITY_BLACK;
@@ -1422,10 +1500,14 @@ void draw_gameplay() {
             BeginShaderMode(shaders[index]);
             DrawTexturePro(txinfo[txindex], src, dst, origin, 0.0f, c);
             EndShaderMode();
+
+            //DrawRectangleLinesEx(hb, 1.0f, RED);
+
+
         } else if (type == ENTITY_ORC) {
-            Vector2 mydir = get_dir(id);
-            if (mydir.x != 0) {
-                src.width *= mydir.x;
+            Vector2 v = get_velocity(id);
+            if (v.x < 0) {
+                src.width *= -1;
             }
             DrawTexturePro(txinfo[TX_ORC], src, dst, origin, 0.0f, c);
         } else if (type == ENTITY_COIN) {
@@ -1468,6 +1550,8 @@ void draw_frame() {
         draw_gameover();
     else if (current_scene == SCENE_MERCHANT)
         draw_merchant();
+    else if (current_scene == SCENE_TUTORIAL)
+        draw_tutorial();
     EndTextureMode();
     ClearBackground(BLACK);
     DrawTexturePro(
@@ -1557,21 +1641,46 @@ void update_state_player_attack() {
         Rectangle hb = get_hitbox(hero_id);
         Vector2 dir = get_dir(hero_id);
         float sz = get_size(sword_id);
-        float w = txinfo[TX_SWORD].width * sz;
-        float h = txinfo[TX_SWORD].height * sz;
+
+        int txkey = TX_SWORD;
+        float w = txinfo[txkey].width * sz;
+        float h = txinfo[txkey].height * sz;
+
+        Vector2 spos = {-1, hb.y};
+
         hb.y = hb.y + hb.height / 2.0f - 2;
-        if (dir.x == 1) {
-            Vector2 spos = {-1, hb.y};
+        if (last_dir_key_pressed == KEY_RIGHT) {
+            spos.y = hb.y;
             hb.x = hb.x + hb.width;
             spos.x = hb.x;
             hb = {hb.x, hb.y + 1, w, h};
             set_hitbox(sword_id, hb);
             set_pos(sword_id, spos);
-        } else if (dir.x == -1) {
-            Vector2 spos = {-1, hb.y};
+        } else if (last_dir_key_pressed == KEY_LEFT) {
+            spos.y = hb.y;
             hb.x = hb.x - w;
             spos.x = hb.x;
             hb = {hb.x, hb.y + 1, w, h};
+            set_hitbox(sword_id, hb);
+            set_pos(sword_id, spos);
+        } else if (last_dir_key_pressed == KEY_UP) {
+            txkey = TX_SWORD_UP;
+            w = txinfo[txkey].width * sz;
+            h = txinfo[txkey].height * sz;
+            spos.y = hb.y - h - 1;
+            spos.x = hb.x;
+            hb = {spos.x, spos.y, w, h};
+            set_hitbox(sword_id, hb);
+            set_pos(sword_id, spos);
+
+        } else if (last_dir_key_pressed == KEY_DOWN) {
+            txkey = TX_SWORD_UP;
+            w = txinfo[txkey].width * sz;
+            h = txinfo[txkey].height * sz;
+            spos.y = hb.y + hb.height - 1;
+            spos.x = hb.x;
+            //hb = {hb.x, hb.y, w, h};
+            hb = {spos.x, spos.y, w, h};
             set_hitbox(sword_id, hb);
             set_pos(sword_id, spos);
         }
