@@ -12,6 +12,7 @@
 #include <emscripten/emscripten.h>
 #endif
 
+#define ORC_STARTING_HP 1.0f
 #define DEFAULT_ZOOM 8.0f
 #define WIN_W 1920
 #define WIN_H 1080
@@ -320,8 +321,8 @@ void unload_shaders() {
 
 void randomize_merchant_items() {
     vector<item_type> items;
-    //items.push_back(ITEM_BOOTS);
-    //items.push_back(ITEM_HEALTH_EXPANSION);
+    items.push_back(ITEM_BOOTS);
+    items.push_back(ITEM_HEALTH_EXPANSION);
     items.push_back(ITEM_SWORD);
     items.push_back(ITEM_SWORD_SIZE);
     items.push_back(ITEM_MAGNET);
@@ -763,7 +764,7 @@ bool create_orc() {
                            0});
     set_collides(id, true);
     set_destroy(id, false);
-    set_hp(id, (Vector2){1.0f, 1.0f});
+    set_hp(id, (Vector2){ORC_STARTING_HP, ORC_STARTING_HP});
     enemies_spawned++;
     return true;
 }
@@ -1765,7 +1766,8 @@ void update_state_sword_collision() {
             if (type_check && collides) {
                 sword_collision_counter++;
                 Vector2 enemy_hp = get_hp(id);
-                enemy_hp.x--;
+                enemy_hp.x -= 1;
+                set_hp(id, enemy_hp);
                 if (enemy_hp.x <= 0) {
                     set_destroy(id, true);
                     if (t == ENTITY_ORC) {
