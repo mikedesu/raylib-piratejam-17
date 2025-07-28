@@ -1,6 +1,5 @@
 // red-glow.frag
-//#version 330
-#version 100
+#version 330
 in vec2 fragTexCoord;
 out vec4 finalColor;
 uniform sampler2D texture0;
