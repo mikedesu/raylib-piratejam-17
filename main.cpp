@@ -64,7 +64,8 @@
 #define TX_HEALTH_REPLENISH 12
 #define TX_HEALTH_EXPANSION 13
 #define TX_BAT 14
-#define TX_COUNT 15
+#define TX_MAGNET 15
+#define TX_COUNT 16
 
 #define SFX_CONFIRM 0
 #define SFX_HIT 1
@@ -94,6 +95,7 @@ typedef enum
     C_DURABILITY,
     C_DIRECTION,
     C_SIZE,
+    C_MAGNET,
     C_COUNT
 } component;
 
@@ -175,7 +177,10 @@ int num_orcs_to_create = DEFAULT_ORCS_TO_CREATE;
 int num_bats_to_create = DEFAULT_BATS_TO_CREATE;
 int player_level = 1;
 bool levelup_flag = false;
-int base_coin_level_up_amount = 5;
+
+#define COIN_LVL_UP_AMT 1
+int base_coin_level_up_amount = COIN_LVL_UP_AMT;
+
 int merchant_item_selection = 0;
 bool do_spawn_merchant = false;
 bool merchant_spawned = false;
@@ -241,6 +246,7 @@ unordered_map<entityid, Rectangle> sources;
 unordered_map<entityid, Vector2> hp;
 unordered_map<entityid, Vector2> durability;
 unordered_map<entityid, float> sizes;
+unordered_map<entityid, int> magnets;
 
 void set_start_time() {
     game_start_time = time(NULL);
@@ -314,10 +320,11 @@ void unload_shaders() {
 
 void randomize_merchant_items() {
     vector<item_type> items;
-    items.push_back(ITEM_BOOTS);
-    items.push_back(ITEM_HEALTH_EXPANSION);
+    //items.push_back(ITEM_BOOTS);
+    //items.push_back(ITEM_HEALTH_EXPANSION);
     items.push_back(ITEM_SWORD);
     items.push_back(ITEM_SWORD_SIZE);
+    items.push_back(ITEM_MAGNET);
     int i = 0;
     for (int i = 0; i < 3; i++) {
         // select a random index from items
@@ -343,6 +350,7 @@ void cleanup_data() {
     durability.clear();
     directions.clear();
     sizes.clear();
+    magnets.clear();
     // reset entity ids
     hero_id = ENTITYID_INVALID;
     sword_id = ENTITYID_INVALID;
@@ -640,6 +648,20 @@ float get_size(entityid id) {
     return -1.0f; // Return invalid size if not found
 }
 
+bool set_magnet(entityid id, int m) {
+    if (!entity_exists(id)) return false;
+    set_comp(id, C_MAGNET);
+    magnets[id] = m;
+    return true;
+}
+
+int get_magnet(entityid id) {
+    if (!has_comp(id, C_MAGNET)) return -1; // Invalid size
+    auto it = magnets.find(id);
+    if (it != magnets.end()) return it->second;
+    return -1;
+}
+
 bool create_player() {
     entityid id = add_entity();
     if (id == ENTITYID_INVALID) return false;
@@ -659,6 +681,8 @@ bool create_player() {
     set_velocity(id, (Vector2){HERO_VELO_X_DEFAULT, HERO_VELO_Y_DEFAULT});
     set_hp(id, (Vector2){3.0f, 3.0f});
     set_dir(id, (Vector2){1.0f, 0.0f}); // facing right by default
+
+    set_magnet(id, 0);
     hero_id = id;
     return true;
 }
@@ -943,6 +967,8 @@ void handle_input_merchant() {
             float sz = get_size(sword_id);
             sz += 0.1f;
             set_size(sword_id, sz);
+        } else if (merchant_items[merchant_item_selection] == ITEM_MAGNET) {
+            set_magnet(hero_id, get_magnet(hero_id) + 1);
         }
         current_coins -= base_coin_level_up_amount * player_level;
         coins_spent += base_coin_level_up_amount * player_level;
@@ -1276,6 +1302,9 @@ void draw_merchant() {
         } else if (merchant_items[i] == ITEM_SWORD_SIZE) {
             txkey = TX_SWORD_UP;
             item_text = "Size";
+        } else if (merchant_items[i] == ITEM_MAGNET) {
+            txkey = TX_MAGNET;
+            item_text = "Magnet";
         }
         src1 = {0, 0, (float)txinfo[txkey].width, (float)txinfo[txkey].height};
         dsts[i].width = src1.width * scale;
@@ -1366,6 +1395,19 @@ void draw_gameplay() {
             BeginShaderMode(shaders[index]);
             DrawTexturePro(txinfo[TX_HERO], src, dst, origin, 0.0f, c);
             EndShaderMode();
+
+            // test magnetism
+            int m = get_magnet(hero_id);
+            if (m > 0) {
+                Rectangle magnet_dst = dst;
+                magnet_dst.x -= (2 * m);
+                magnet_dst.y -= (2 * m);
+                magnet_dst.width += 4 * m;
+                magnet_dst.height += 4 * m;
+
+                DrawRectangleLinesEx(magnet_dst, 1.0f, RED);
+            }
+
         } else if (type == ENTITY_SWORD) {
             int txindex = TX_SWORD;
             if (last_dir_key_pressed == KEY_LEFT) {
@@ -1484,6 +1526,7 @@ void load_textures() {
     load_texture(TX_HEALTH_REPLENISH, "meat");
     load_texture(TX_HEALTH_EXPANSION, "heart-expansion");
     load_texture(TX_BAT, "bat");
+    load_texture(TX_MAGNET, "magic");
     draw_company_to_texture();
     draw_title_to_texture();
 }
