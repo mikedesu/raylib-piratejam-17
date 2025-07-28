@@ -1,114 +1,113 @@
-# README.md
+# There Can Be... 
 
-*7/18/2025: 01:15 am*
+## README.md / Design Document
 
-This is essentially the "design doc".
-Going in, I am thinking something in-between a shmup and an infinite runner.
-I have a dude on the screen, moving around, appropriately zoomed-in.
-I have a sword appearing as well. 
+### For PirateJam 17
 
-Because the theme is "only one":
+*Last Updated: 2025-07-28*
 
-- Only one source file. Hardcore, but the build speed is so fast!
-- Only one sword. As you kill things and collect powerups, your sword will grow in power.
-- Only one life. I want to be rather brutal/punishing if you mess-up.
-- Only one hitpoint. If you get hit, it is gameover.
-  - However, this will encourage "highscore"-style competition.
-  - Who can get the furthest?
-  - Who can kill the most?
-  - Who can level-up their sword the furthest?
+## Game Concept
+"A shmup/infinite-runner hybrid where 'only one' rules them all"
 
-*7/18/2025: 02:05 am*
+### Core Mechanics:
+- Single life-run gameplay  
+- Progressive sword upgrades define playstyle
+- Resource management (coins/experience) 
+- Day/night cycle affecting enemy spawns
 
-- Orcs spawning with velocity. 
-- Need collision soon.
-- Need off-screen removal.
-- Need kill count.
-- Need parallax scrolling.
-- current LOC: 503 including whitespace
+## Technical Architecture
 
-*7/19/2025: 12:31pm*
+### Core Systems:
 
-- pushed current code and readme to github
-- basic sound effects are in
-- collision is in
-- enemy deaths are in
-- player getting hit is in
+**Entity-Component System**
+- Used for all game objects (hero, enemies, items)  
+- Components stored in unordered_maps keyed by entityid  
+- Bitmask tracks which components each entity has  
 
-**Inspiration for the game comes from Radiant Silvergun as well as Gradius III***
+**Scene Management**
+- Finite state machine handles:
+  - Company logo → Title → Gameplay → GameOver  
 
-So we are going to need:
+**Render Pipeline**
+- Uses Raylib's texture rendering pipeline  
+- Shaders applied post-processing for visual effects:
+  - HP bars
+  - Weapon durability  
+  - Selection highlight  
 
-- Powerups
-    - Player
-    - Sword
+### Key Data Structures
+```cpp
+// Component storage
+unordered_map<entityid, string> names;  
+unordered_map<entityid, entity_type> types;
+unordered_map<entityid, Vector2> positions; 
+// ...etc
+```
 
-At the moment, when an orc runs into your sword while you have it out, the orc dies, and your sword is forced to re-sheath.
-Each orc only has 1 HP, but I want to experiment with some ideas:
+## Gameplay Systems
 
-- Enemies with varying HP
-- "Sword durability" that allows for more sword-enemy collisions before being sheathed
+### Controls
+- **Arrow Keys**: Move hero (4-way)  
+- **A Button**: Sword attack (direction-aware), confirm/select
+- **Enter**: Confirm/select  
 
-*7/20/2025: 7:32 pm*
+### Upgrade System
+Merchant offers 3 random upgrades per visit:
+- **Sword Durability** (+1 hit per upgrade)  
+- **Movement Speed** (+25% speed)  
+- **HP Expansion** (+1 max HP)  
+- **Sword Size** (+10% hitbox)
 
-- want to implement coins and exp.
-- coins will be collected to buy power ups when u run into a merchant.
-  - power ups will include things like:
-      - making the sword bigger
-      - making the sword do more damage
-      - making the sword have more durability
-      - making the player have more controlled or faster movement
-      - making the player's hitbox smaller
-      - spawning a shield that sits in front and takes a hit
-- exp will be used to level up.
-    - some power ups may be unavailable at lower levels 
-- spawning of enemy initial position should be a bit fixed on the x so as to be predictable timing-wise
+### Enemy Types  
 
-----------
+| Type       | HP | Movement                  | Spawn Condition  | Implemented? |
+|------------|----|---------------------------|------------------|--------------|
+| Orc        | 1  | Horizontal runner         | Always           | Yes          |
+| Bat        | 1  | Vertical dive             | Nighttime only   | Yes          |
+| Orc Boss   | 5  | Slow, heavy horizontal    | Levels 15+       | No           |
 
-*7/25/2025: 3:34 pm*
+### Day/Night Cycle
+- **Day**: Orcs spawn normally
+- **Night**: Bats spawn, 50% faster enemy speed  
+- Sky color calculated based on position of sun / moon
 
-- greetings stream watchers!
+## Roadmap
 
-- we need an HUD. to start with:
-    - hp
-    - durability
-    - speed
-    - level
-    - coins
-    - kills
-- up and down directions so the sword can also aim up and down
-- enemies to spawn in from the left as well
-- enemies with greater hp
-- power up that increases attack power
-    - will require an ATTACK component
-- power up that acts as a bomb that wipes the screen
-    - will require a BOMBS component
-- i want to track combos and display them in a cool way
+### Planned Features
 
+- Diagonal sword attacks  
+- Screen-clearing bomb item  
+- Combo counter visual  
+- Magnetic item powerup
+- Shield powerup  
+- Persistent high scores  
+- New enemies
+    - Golem 
+    - Zombie
+    - Wisp
+- Procedural music system  
+- Particle effects  
+- Localization support  
 
+## Constants Reference
 
-7/27/2025
+Key tunable values from `main.cpp`:
 
-- need to make dwarfs 5-laned
-- need bats coming in from top (DONE)
-  - need sword up/down first (DONE)
-- need gameover stats display (DONE)
-    - enemies killed/missed/percentages
-    - coins collected/missed/spent
-    - etc
+```cpp
+// Gameplay
+#define DEFAULT_ZOOM 8.0f
+#define HERO_VELO_X_DEFAULT 0.25f  
+#define BASE_ORC_SPEED -0.20f
+#define DEFAULT_SPAWN_FREQ 300
+// etc...
 
-7/28/2025
+// Economy
+#define BASE_COIN_LEVEL_UP_AMOUNT 5
+#define MERCHANT_ITEM_SELECTION_MAX 3
+// etc...
+```
 
-- WEB BUILD!!!
-- DESIGN DOC!!!
-- boss orc / big orc with lots of hp
-- diagonal swords?
-- sword attack power power up
-- finish tutorial screen 
-- "you died" screen before game over screen
+## Troubleshooting
 
-
-
-
-
+**Known Issues:**
+- Web build audio latency  
