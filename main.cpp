@@ -1314,15 +1314,11 @@ void draw_gameplay_grass() {
 
 // TODO: optimize
 void draw_gameplay_sky() {
-    if (is_day) {
-        unsigned char a = 255 - (sun.y * 255.0 / (target_h / 4.0f));
-        Color c = (Color){0, 0, 255, a};
-        ClearBackground(c);
-    } else {
-        unsigned char a = (moon.y * 255.0 / (target_h / 4.0f));
-        Color c = (Color){0, 0, 255, a};
-        ClearBackground(c);
-    }
+#define TARGET_H_4 (TARGET_H / 4.0f)
+#define TARGET_H_4255 (255.0f / TARGET_H_4)
+    unsigned char a =
+        is_day ? 255 - (sun.y * TARGET_H_4255) : moon.y * TARGET_H_4255;
+    ClearBackground((Color){0, 0, 255, a});
 }
 
 void draw_gameplay_sun_moon() {
