@@ -28,6 +28,7 @@
 #define RANDOM_ORC_SPEED_MOD_MAX 2
 #define BASE_ORC_SPEED -0.20f
 #define BASE_ORC_BOSS_SPEED -0.10f
+#define COIN_LVL_UP_AMT 1
 
 // Entity Spawn Positions
 #define ORC_SPAWN_X_RIGHT 150
@@ -201,7 +202,6 @@ int num_bats_to_create = DEFAULT_BATS_TO_CREATE;
 int player_level = 1;
 bool levelup_flag = false;
 
-#define COIN_LVL_UP_AMT 1
 int base_coin_level_up_amount = COIN_LVL_UP_AMT;
 
 int merchant_item_selection = 0;
