@@ -797,7 +797,7 @@ bool create_orc_boss() {
     set_collides(id, true);
     set_destroy(id, false);
 
-#define ORC_BOSS_HP 1.0f
+#define ORC_BOSS_HP 10.0f
     set_hp(id, (Vector2){ORC_BOSS_HP, ORC_BOSS_HP});
     enemies_spawned++;
     return true;
@@ -1918,8 +1918,7 @@ void update_state() {
     // every N frames, create_orc
     if (frame_count % spawn_freq == 0) {
         for (int i = 0; i < num_orcs_to_create; i++) {
-            //create_orc();
-            create_orc_boss();
+            create_orc();
         }
         if (!is_day) {
             for (int i = 0; i < num_bats_to_create; i++) {
