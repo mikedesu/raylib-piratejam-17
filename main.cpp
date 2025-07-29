@@ -12,37 +12,50 @@
 #include <emscripten/emscripten.h>
 #endif
 
-#define ORC_STARTING_HP 1.0f
-#define DEFAULT_ZOOM 8.0f
+// Window and Display Settings
 #define WIN_W 1920
 #define WIN_H 1080
 #define TARGET_W 800
 #define TARGET_H 480
+#define DEFAULT_ZOOM 8.0f
 #define TARGET_W_2 (TARGET_W / 2.0f)
 #define TARGET_H_8 (TARGET_H / 8.0f)
-#define GRASS_TILES_HIGH 4
-#define GRASS_TILES_WIDE 13
-#define SUN_VELO 0.01f
-#define MOON_VELO 0.01f
+
+// Game Entities Settings
+#define ORC_STARTING_HP 1.0f
 #define DEFAULT_ORCS_TO_CREATE 1
 #define DEFAULT_BATS_TO_CREATE 1
 #define RANDOM_ORC_SPEED_MOD_MAX 2
-#define DEFAULT_SPAWN_FREQ 300
-#define MERCHANT_ITEM_SELECTION_MAX 3
+#define BASE_ORC_SPEED -0.20f
+#define BASE_ORC_BOSS_SPEED -0.10f
+
+// Entity Spawn Positions
 #define ORC_SPAWN_X_RIGHT 150
 #define ORC_SPAWN_X_LEFT 42
 #define ORC_SPAWN_Y 57
 #define BAT_SPAWN_X (TARGET_W / DEFAULT_ZOOM / 2.0f)
 #define BAT_SPAWN_Y (TARGET_H / DEFAULT_ZOOM / 2.0f)
-#define BAT_VELO_Y 0.20f
+
+// Movement and Physics
 #define HERO_VELO_X_DEFAULT 0.25f
 #define HERO_VELO_Y_DEFAULT 0.25f
-
-#define BASE_ORC_SPEED -0.20f
-#define BASE_ORC_BOSS_SPEED -0.10f
-
+#define BAT_VELO_Y 0.20f
 #define COIN_VELO_X 0.1f
+
+// Game Timing and Spawning
+#define DEFAULT_SPAWN_FREQ 300
 #define DEFAULT_SPAWN_FREQ_INCR 30.0f
+
+// Environment Settings
+#define GRASS_TILES_HIGH 4
+#define GRASS_TILES_WIDE 13
+#define SUN_VELO 0.01f
+#define MOON_VELO 0.01f
+
+// Merchant Settings
+#define MERCHANT_ITEM_SELECTION_MAX 3
+
+// Shader Indices
 #define SH_RED_GLOW 0
 #define SH_INVERT 1
 #define SH_INTENSE_RED_GLOW 2
@@ -50,11 +63,13 @@
 #define SH_HP_RED_GLOW 4
 #define SH_BLUE_GLOW 5
 #define SH_DURABILITY_BLACK 6
-
 #define NUM_SHADERS 7
+
+// Resource Limits
 #define NUM_TEXTURES 32
 #define NUM_SFX 32
 
+// Texture Indices
 #define TX_HERO 0
 #define TX_SWORD 1
 #define TX_ORC 2
@@ -73,6 +88,7 @@
 #define TX_MAGNET 15
 #define TX_COUNT 16
 
+// Sound Effect Indices
 #define SFX_CONFIRM 0
 #define SFX_HIT 1
 #define SFX_GET_HIT 2
