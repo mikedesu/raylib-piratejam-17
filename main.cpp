@@ -797,7 +797,7 @@ bool create_orc_boss() {
     set_collides(id, true);
     set_destroy(id, false);
 
-#define ORC_BOSS_HP 10.0f
+#define ORC_BOSS_HP 1.0f
     set_hp(id, (Vector2){ORC_BOSS_HP, ORC_BOSS_HP});
     enemies_spawned++;
     return true;
@@ -835,10 +835,17 @@ bool create_coin(entityid id) {
     set_name(coin_id, "coin");
     set_type(coin_id, ENTITY_COIN);
     Vector2 pos = get_pos(id);
+
+    // add a little random variance to the x and y
+    // so when multiple coins spawn at the same location
+    // they do not overlap
+    pos.x += GetRandomValue(-4, 4);
+    pos.y += GetRandomValue(-4, 4);
+
+    Rectangle src = {0, 0, (float)txinfo[TX_COIN].width, (float)txinfo[TX_COIN].height};
+    Rectangle hitbox = {pos.x, pos.y, src.width, src.height};
     set_pos(coin_id, pos);
-    Rectangle src = {0, 0, 4, 6};
     set_src(coin_id, src);
-    Rectangle hitbox = {pos.x, pos.y, 4, 6};
     set_hitbox(coin_id, hitbox);
     set_collides(coin_id, true);
     set_destroy(coin_id, false);
