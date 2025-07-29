@@ -28,6 +28,7 @@
 #define RANDOM_ORC_SPEED_MOD_MAX 2
 #define BASE_ORC_SPEED -0.20f
 #define BASE_ORC_BOSS_SPEED -0.10f
+#define MERCHANT_VELOCITY -0.25f
 #define COIN_LVL_UP_AMT 1
 #define ENTITYID_INVALID -1
 
@@ -814,36 +815,24 @@ bool create_orc() {
 bool create_orc_boss() {
     entityid id = add_entity();
     if (id == ENTITYID_INVALID) return false;
-    set_name(id, "orc-boss");
-    set_type(id, ENTITY_ORC_BOSS);
     int txkey = TX_ORC;
     float w = txinfo[txkey].width;
     float h = txinfo[txkey].height;
     Rectangle src = {0, 0, w, h};
     // Select a random x,y appropriate to the scene based on randomly-chosen direction to start
-    //int side = GetRandomValue(0, 1);
-    //if (side == 0) side = -1;
-    float xpos = ORC_SPAWN_X_RIGHT;
-    float ypos = ORC_SPAWN_Y;
-    //if (side == -1) {
-    //    xpos = ORC_SPAWN_X_LEFT;
-    //}
-    Vector2 p = {xpos, ypos};
-    //int random_y = 0;
-    //random_y = GetRandomValue(-2, 2);
-    //p.y += random_y * h;
+    float x = ORC_SPAWN_X_RIGHT;
+    float y = ORC_SPAWN_Y;
+    Vector2 p = {x, y};
     float scale = 2.0f;
     Rectangle hitbox = {p.x, p.y, w * scale, h * scale};
+    set_name(id, "orc-boss");
+    set_type(id, ENTITY_ORC_BOSS);
     set_src(id, src);
     set_pos(id, p);
     set_hitbox(id, hitbox);
-    // Set a random velocity to the orc
     set_velocity(id, (Vector2){BASE_ORC_BOSS_SPEED, 0});
     set_collides(id, true);
     set_destroy(id, false);
-
-    //#define ORC_BOSS_HP 10.0f
-
     // since we only intend to spawn every 10 levels,
     // and we want scaling boss hp
     set_hp(id, (Vector2){player_level * 2.0f, player_level * 2.0f});
@@ -854,21 +843,18 @@ bool create_orc_boss() {
 bool create_dwarf_merchant() {
     entityid id = add_entity();
     if (id == ENTITYID_INVALID) return false;
+    Rectangle src = {0, 0, (float)-txinfo[TX_DWARF_MERCHANT].width, (float)txinfo[TX_DWARF_MERCHANT].height};
+    float w = src.width;
+    float h = src.height;
+    // Select a random x,yf appropriate to the scene
+    Vector2 p = {ORC_SPAWN_X_RIGHT, ORC_SPAWN_Y + GetRandomValue(-1, 1) * h};
+    Rectangle hitbox = {p.x, p.y, w, h};
     set_name(id, "dwarf merchant");
     set_type(id, ENTITY_DWARF_MERCHANT);
-    Rectangle src = {0, 0, -9, 7};
     set_src(id, src);
-    float w = txinfo[0].width * 1.0f;
-    float h = txinfo[0].height * 1.0f;
-    // Select a random x,yf appropriate to the scene
-    Vector2 p = {ORC_SPAWN_X_RIGHT, ORC_SPAWN_Y};
-    int random_y = 0;
-    random_y = GetRandomValue(-1, 1);
-    p.y += random_y * h;
     set_pos(id, p);
-    Rectangle hitbox = {p.x, p.y, w, h};
     set_hitbox(id, hitbox);
-    set_velocity(id, (Vector2){-0.25f, 0});
+    set_velocity(id, (Vector2){MERCHANT_VELOCITY, 0});
     set_collides(id, true);
     set_destroy(id, false);
     set_hp(id, (Vector2){1.0f, 1.0f});
@@ -880,19 +866,17 @@ bool create_coin(entityid id) {
     if (!entity_exists(id)) return false;
     entityid coin_id = add_entity();
     if (coin_id == ENTITYID_INVALID) return false;
-    set_name(coin_id, "coin");
-    set_type(coin_id, ENTITY_COIN);
-    Vector2 pos = get_pos(id);
-
+    Vector2 p = get_pos(id);
     // add a little random variance to the x and y
     // so when multiple coins spawn at the same location
     // they do not overlap
-    pos.x += GetRandomValue(-4, 4);
-    pos.y += GetRandomValue(-4, 4);
-
+    p.x += GetRandomValue(-4, 4);
+    p.y += GetRandomValue(-4, 4);
     Rectangle src = {0, 0, (float)txinfo[TX_COIN].width, (float)txinfo[TX_COIN].height};
-    Rectangle hitbox = {pos.x, pos.y, src.width, src.height};
-    set_pos(coin_id, pos);
+    Rectangle hitbox = {p.x, p.y, src.width, src.height};
+    set_name(coin_id, "coin");
+    set_type(coin_id, ENTITY_COIN);
+    set_pos(coin_id, p);
     set_src(coin_id, src);
     set_hitbox(coin_id, hitbox);
     set_collides(coin_id, true);
@@ -902,7 +886,7 @@ bool create_coin(entityid id) {
         set_velocity(coin_id, (Vector2){-COIN_VELO_X, 0});
     else
         set_velocity(coin_id, (Vector2){COIN_VELO_X, 0});
-    set_pos(coin_id, pos);
+    set_pos(coin_id, p);
     coins_spawned++;
     return true;
 }
@@ -914,11 +898,11 @@ bool create_health_replenish(entityid id) {
     if (heart_id == ENTITYID_INVALID) return false;
     set_name(heart_id, "heart");
     set_type(heart_id, ENTITY_HEALTH_REPLENISH);
-    Vector2 pos = get_pos(id);
-    set_pos(heart_id, pos);
-    Rectangle src = {0, 0, 7, 7};
+    Vector2 p = get_pos(id);
+    Rectangle src = {0, 0, (float)txinfo[TX_HEALTH_REPLENISH].width, (float)txinfo[TX_HEALTH_REPLENISH].height};
+    Rectangle hitbox = {p.x, p.y, src.width, src.height};
+    set_pos(heart_id, p);
     set_src(heart_id, src);
-    Rectangle hitbox = {pos.x, pos.y, src.width, src.height};
     set_hitbox(heart_id, hitbox);
     set_collides(heart_id, true);
     set_destroy(heart_id, false);
@@ -927,7 +911,7 @@ bool create_health_replenish(entityid id) {
         set_velocity(heart_id, (Vector2){-COIN_VELO_X, 0});
     else
         set_velocity(heart_id, (Vector2){COIN_VELO_X, 0});
-    set_pos(heart_id, pos);
+    set_pos(heart_id, p);
     return true;
 }
 
