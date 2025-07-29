@@ -29,6 +29,7 @@
 #define BASE_ORC_SPEED -0.20f
 #define BASE_ORC_BOSS_SPEED -0.10f
 #define COIN_LVL_UP_AMT 1
+#define ENTITYID_INVALID -1
 
 // Entity Spawn Positions
 #define ORC_SPAWN_X_RIGHT 150
@@ -213,13 +214,12 @@ entityid hero_id = ENTITYID_INVALID;
 entityid sword_id = ENTITYID_INVALID;
 bool player_attacking = false;
 int last_dir_key_pressed = KEY_RIGHT;
-Vector2 hero_hitbox = {-1, -1, -1, -1};
+//Vector2 hero_hitbox = {-1, -1, -1, -1};
 float starting_sword_durability = 1.0f;
 float current_sword_durability = 1.0f;
 
 // Entity Tracking
 entityid next_entityid = 0;
-const entityid ENTITYID_INVALID = -1;
 int grass_tiles[GRASS_TILES_HIGH][GRASS_TILES_WIDE];
 
 // Enemy Spawning and Behavior
