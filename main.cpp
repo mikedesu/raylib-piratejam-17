@@ -167,6 +167,7 @@ bool create_health_replenish(entityid id);
 bool create_dwarf_merchant();
 void randomize_merchant_items();
 
+// Window and Display Configuration
 const char* game_window_title = "evildojo666 presents: There can be...";
 int window_w = WIN_W;
 int window_h = WIN_H;
@@ -175,11 +176,9 @@ int target_h = TARGET_H;
 int window_size_min_w = 320;
 int window_size_min_h = 240;
 int target_fps = 60;
-
 float default_zoom = DEFAULT_ZOOM;
 
-game_scene current_scene = SCENE_COMPANY;
-Color debug_txt_color = WHITE;
+// Rendering Resources
 RenderTexture target_texture;
 RenderTexture company_texture;
 RenderTexture title_texture;
@@ -189,44 +188,73 @@ Rectangle target_dst;
 Rectangle window_dst;
 const Vector2 origin = {0, 0};
 Camera2D cam2d;
+Texture2D txinfo[NUM_TEXTURES];
+Shader shaders[NUM_SHADERS];
+Sound sfx[NUM_SFX];
+Music music = {0};
+Color debug_txt_color = WHITE;
+
+// Scene Management
+game_scene current_scene = SCENE_COMPANY;
+bool first_time_playing = true;
+
+// Game State
+bool gameover = false;
+int continues = 0;
 int frame_count = 0;
 int frame_updates = 0;
 bool do_frame_update = false;
-int spawn_freq = DEFAULT_SPAWN_FREQ;
-int spawn_freq_incr = DEFAULT_SPAWN_FREQ_INCR;
-float base_orc_speed = BASE_ORC_SPEED;
-float current_orc_speed = BASE_ORC_SPEED;
-int random_orc_speed_mod_max = RANDOM_ORC_SPEED_MOD_MAX;
-int num_orcs_to_create = DEFAULT_ORCS_TO_CREATE;
-int num_bats_to_create = DEFAULT_BATS_TO_CREATE;
 int player_level = 1;
 bool levelup_flag = false;
-
-int base_coin_level_up_amount = COIN_LVL_UP_AMT;
-
-int merchant_item_selection = 0;
-
-bool do_spawn_merchant = false;
-bool merchant_spawned = false;
-
-bool do_spawn_orc_boss = false;
-bool orc_boss_spawned = false;
-
-
-bool gameover = false;
-int last_dir_key_pressed = KEY_RIGHT;
 int highest_level_reached = 1;
 
-Texture2D txinfo[NUM_TEXTURES];
-Sound sfx[NUM_SFX];
-Music music = {0};
-Shader shaders[NUM_SHADERS];
-
-entityid next_entityid = 0;
-const entityid ENTITYID_INVALID = -1;
+// Player State
 entityid hero_id = ENTITYID_INVALID;
 entityid sword_id = ENTITYID_INVALID;
 bool player_attacking = false;
+int last_dir_key_pressed = KEY_RIGHT;
+Vector2 hero_hitbox = {-1, -1, -1, -1};
+float starting_sword_durability = 1.0f;
+float current_sword_durability = 1.0f;
+
+// Entity Tracking
+entityid next_entityid = 0;
+const entityid ENTITYID_INVALID = -1;
+int grass_tiles[GRASS_TILES_HIGH][GRASS_TILES_WIDE];
+
+// Enemy Spawning and Behavior
+int spawn_freq = DEFAULT_SPAWN_FREQ;
+int spawn_freq_incr = DEFAULT_SPAWN_FREQ_INCR;
+int num_orcs_to_create = DEFAULT_ORCS_TO_CREATE;
+int num_bats_to_create = DEFAULT_BATS_TO_CREATE;
+float base_orc_speed = BASE_ORC_SPEED;
+float current_orc_speed = BASE_ORC_SPEED;
+int random_orc_speed_mod_max = RANDOM_ORC_SPEED_MOD_MAX;
+
+// Merchant System
+item_type merchant_items[MERCHANT_ITEM_SELECTION_MAX] = {ITEM_SWORD, ITEM_HEALTH_EXPANSION, ITEM_BOOTS};
+int merchant_item_selection = 0;
+bool do_spawn_merchant = false;
+bool merchant_spawned = false;
+
+// Boss System
+bool do_spawn_orc_boss = false;
+bool orc_boss_spawned = false;
+
+// Day/Night Cycle
+bool is_day = true;
+Rectangle sun = {target_w / 8.0f, target_h / 4.0f, 8, 8};
+Rectangle moon = {target_w / 8.0f, target_h / 4.0f, 8, 8};
+
+// Economy System
+int base_coin_level_up_amount = COIN_LVL_UP_AMT;
+int current_coins = 0;
+int coins_spent = 0;
+int coins_collected = 0;
+int coins_spawned = 0;
+int coins_lost = 0;
+
+// Combat Stats
 int hero_collision_counter = 0;
 int sword_collision_counter = 0;
 int entities_destroyed = 0;
@@ -234,24 +262,7 @@ int enemies_killed = 0;
 int total_enemies_killed = 0;
 int enemies_spawned = 0;
 int enemies_missed = 0;
-int current_coins = 0;
-int coins_spent = 0;
-int coins_collected = 0;
-int coins_spawned = 0;
-int coins_lost = 0;
 int hero_total_damage_received = 0;
-int continues = 0;
-float starting_sword_durability = 1.0f;
-float current_sword_durability = 1.0f;
-bool is_day = true;
-bool first_time_playing = true;
-
-Rectangle sun = {target_w / 8.0f, target_h / 4.0f, 8, 8};
-Rectangle moon = {target_w / 8.0f, target_h / 4.0f, 8, 8};
-
-item_type merchant_items[MERCHANT_ITEM_SELECTION_MAX] = {ITEM_SWORD, ITEM_HEALTH_EXPANSION, ITEM_BOOTS};
-
-int grass_tiles[GRASS_TILES_HIGH][GRASS_TILES_WIDE];
 
 // structures for keeping track of the game's start time and the game's current time
 // use ctime
