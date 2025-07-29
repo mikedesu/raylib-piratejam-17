@@ -185,6 +185,10 @@ RenderTexture target_texture;
 RenderTexture company_texture;
 RenderTexture title_texture;
 RenderTexture gameover_texture;
+RenderTexture starfield_texture_0;
+RenderTexture starfield_texture_1;
+
+
 Rectangle target_src;
 Rectangle target_dst;
 Rectangle window_dst;
@@ -1207,6 +1211,24 @@ void draw_company() {
     DrawTexturePro(company_texture.texture, target_src, target_dst, origin, 0.0f, WHITE);
 }
 
+void draw_starfield_to_texture() {
+    BeginDrawing();
+    BeginTextureMode(title_texture);
+    Color bg = (Color){0, 0, 0, 0}; // clear/transparent background
+    ClearBackground(bg);
+
+    // draw individual white pixels at random sufficient to simulate/create
+    // a "starfield / starry night sky" effect
+    for (int i = 0; i < target_w * target_h / 100; i++) {
+        int x = GetRandomValue(0, target_w - 1);
+        int y = GetRandomValue(0, target_h - 1);
+        DrawPixel(x, y, WHITE);
+    }
+
+    EndTextureMode();
+    EndDrawing();
+}
+
 void draw_title_to_texture() {
     BeginDrawing();
     BeginTextureMode(title_texture);
@@ -1564,6 +1586,7 @@ void load_textures() {
     load_texture(TX_MAGNET, "magic");
     draw_company_to_texture();
     draw_title_to_texture();
+    draw_starfield_to_texture();
 }
 
 void unload_textures() {
@@ -1574,6 +1597,7 @@ void unload_textures() {
     UnloadRenderTexture(company_texture);
     UnloadRenderTexture(title_texture);
     UnloadRenderTexture(gameover_texture);
+    UnloadRenderTexture(starfield_texture_0);
 }
 
 void init_gfx() {
@@ -1581,10 +1605,15 @@ void init_gfx() {
     InitWindow(window_w, window_h, game_window_title);
     SetWindowMinSize(window_size_min_w, window_size_min_h);
     SetTargetFPS(target_fps);
+
     target_texture = LoadRenderTexture(target_w, target_h);
     company_texture = LoadRenderTexture(target_w, target_h);
     title_texture = LoadRenderTexture(target_w, target_h);
     gameover_texture = LoadRenderTexture(target_w, target_h);
+
+    starfield_texture_0 = LoadRenderTexture(target_w, target_h);
+
+
     target_src = {0, 0, 1.0f * target_w, -1.0f * target_h};
     target_dst = {0, 0, 1.0f * target_w, 1.0f * target_h};
     window_dst.x = window_dst.y = 0;
