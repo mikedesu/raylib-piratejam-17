@@ -425,6 +425,13 @@ void cleanup_data() {
     is_day = true;
     sun = {target_w / 8.0f, target_h / 4.0f, 8, 8};
     moon = {target_w / 8.0f, target_h / 4.0f, 8, 8};
+
+    //cleanup.clear();
+    // reset the merchant items
+    //randomize_merchant_items();
+
+    do_spawn_orc_boss = false;
+    orc_boss_spawned = false;
 }
 
 bool entity_exists(entityid id) {
