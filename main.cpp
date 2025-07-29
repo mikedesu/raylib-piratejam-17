@@ -989,7 +989,7 @@ void handle_input_tutorial() {
 }
 
 void handle_input_gameover() {
-    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_A)) {
+    if (IsKeyPressed(KEY_ENTER)) {
         current_scene = SCENE_TITLE;
         debug_txt_color = BLACK;
         PlaySound(sfx[SFX_CONFIRM]);
