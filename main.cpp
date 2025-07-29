@@ -54,6 +54,8 @@
 #define GRASS_TILES_WIDE 13
 #define SUN_VELO 0.01f
 #define MOON_VELO 0.01f
+#define STARFIELD_WIDTH (TARGET_W * 4.0f)
+#define STARFIELD_HEIGHT (TARGET_W * 4.0f)
 
 // Merchant Settings
 #define MERCHANT_ITEM_SELECTION_MAX 3
@@ -188,6 +190,9 @@ RenderTexture gameover_texture;
 RenderTexture starfield_texture_0;
 RenderTexture starfield_texture_1;
 
+Rectangle starfield_src = {0, 0, TARGET_W, TARGET_H};
+Rectangle starfield_dst = {0, 0, TARGET_W, TARGET_H};
+Vector2 starfield_pos = {0, 0};
 
 Rectangle target_src;
 Rectangle target_dst;
@@ -1219,9 +1224,9 @@ void draw_starfield_to_texture() {
 
     // draw individual white pixels at random sufficient to simulate/create
     // a "starfield / starry night sky" effect
-    for (int i = 0; i < target_w * target_h / 100; i++) {
-        int x = GetRandomValue(0, target_w - 1);
-        int y = GetRandomValue(0, target_h - 1);
+    for (int i = 0; i < STARFIELD_WIDTH * STARFIELD_HEIGHT / 100; i++) {
+        int x = GetRandomValue(0, STARFIELD_WIDTH - 1);
+        int y = GetRandomValue(0, STARFIELD_HEIGHT - 1);
         DrawPixel(x, y, WHITE);
     }
 
@@ -1425,13 +1430,14 @@ void draw_gameplay_sky() {
 #define TARGET_H_4255 (255.0f / TARGET_H_4)
 
     //ClearBackground((Color){0, 0, 0, 255});
-    Rectangle src = {0, 0, (float)target_w, (float)target_h};
-    Rectangle dst = {0, 0, (float)target_w, (float)target_h};
+    //Rectangle src = {0, 0, (float)target_w, (float)target_h};
+    //Rectangle dst = {0, 0, (float)target_w, (float)target_h};
 
     unsigned char a = is_day ? 255 - (sun.y * TARGET_H_4255) : moon.y * TARGET_H_4255;
     //ClearBackground((Color){0, 0, 0, a});
     unsigned char b = 255 - a;
-    DrawTexturePro(starfield_texture_0.texture, src, dst, origin, 0.0f, (Color){0xff, 0xff, 0xff, b});
+    DrawTexturePro(
+        starfield_texture_0.texture, starfield_src, starfield_dst, origin, 0.0f, (Color){0xff, 0xff, 0xff, b});
     ClearBackground((Color){0, 0, 255, a});
 }
 
@@ -1623,7 +1629,7 @@ void init_gfx() {
     title_texture = LoadRenderTexture(target_w, target_h);
     gameover_texture = LoadRenderTexture(target_w, target_h);
 
-    starfield_texture_0 = LoadRenderTexture(target_w, target_h);
+    starfield_texture_0 = LoadRenderTexture(STARFIELD_WIDTH, STARFIELD_HEIGHT);
 
 
     target_src = {0, 0, 1.0f * target_w, -1.0f * target_h};
@@ -1964,6 +1970,16 @@ void update_level_up() {
     }
 }
 
+#define STARFIELD_SPEED 0.01f
+void update_state_starfield() {
+    starfield_pos.x += STARFIELD_SPEED;
+    starfield_dst.x = starfield_pos.x;
+    if (starfield_dst.x > STARFIELD_WIDTH) {
+        starfield_pos.x = 0;
+        starfield_dst.x = 0;
+    }
+}
+
 void update_state_sun_moon() {
     if (is_day) {
         sun.y += SUN_VELO;
@@ -2001,7 +2017,10 @@ void update_state() {
     // perform entity cleanup based on the values in the 'destroy' table
     update_state_destroy();
     update_level_up();
+
     update_state_sun_moon();
+    update_state_starfield();
+
     set_diff_time();
 }
 
