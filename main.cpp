@@ -18,6 +18,8 @@
 #define WIN_H 1080
 #define TARGET_W 800
 #define TARGET_H 480
+#define TARGET_W_2 (TARGET_W / 2.0f)
+#define TARGET_H_8 (TARGET_H / 8.0f)
 #define GRASS_TILES_HIGH 4
 #define GRASS_TILES_WIDE 13
 #define SUN_VELO 0.01f
@@ -1072,8 +1074,6 @@ void draw_hud() {
 }
 
 
-#define TARGET_W_2 (TARGET_W / 2.0f)
-#define TARGET_H_8 (TARGET_H / 8.0f)
 void draw_tutorial() {
     Color bg = BLACK;
     Color c = (Color){0x66, 0x66, 0x66, 255};
