@@ -1101,8 +1101,6 @@ void draw_tutorial() {
     int y = TARGET_H_8 - s;
     int m = 0;
     int pad = 10;
-
-
     vector<string> texts;
     texts.push_back("Tutorial");
     texts.push_back("Use arrow keys to move");
@@ -1114,7 +1112,6 @@ void draw_tutorial() {
     texts.push_back("It gets harder as you go!"); // 7
     texts.push_back("Good Luck!"); // 8
     texts.push_back("Press A or ENTER to continue");
-
     for (int i = 0; i < texts.size(); i++) {
         m = MeasureText(texts[i].c_str(), s);
         x = TARGET_W_2 - m / 2.0f;
@@ -1284,15 +1281,11 @@ void draw_gameover() {
     x = target_w / 2 - m / 2;
     DrawText(text, x, y, s, c);
     y += s + p;
-
-
     float coin_ratio = 0.0f;
     if (coins_spawned > 0) {
         coin_ratio = (float)coins_collected / (float)coins_spawned * 100.0f;
     }
-
     text = TextFormat("Coins collected/spawned: %d/%d (%0.2f%)", coins_collected, coins_spawned, coin_ratio);
-
     m = MeasureText(text, s);
     x = target_w / 2 - m / 2;
     DrawText(text, x, y, s, c);
@@ -1312,8 +1305,6 @@ void draw_gameover() {
     x = target_w / 2 - m / 2;
     DrawText(text, x, y, s, c);
     y += s + p;
-
-
     EndDrawing();
     frame_updates++;
 }
@@ -1458,8 +1449,6 @@ void draw_gameplay() {
             BeginShaderMode(shaders[index]);
             DrawTexturePro(txinfo[TX_HERO], src, dst, origin, 0.0f, c);
             EndShaderMode();
-
-
         } else if (type == ENTITY_SWORD) {
             int txindex = TX_SWORD;
             if (last_dir_key_pressed == KEY_LEFT) {
@@ -1485,22 +1474,15 @@ void draw_gameplay() {
             BeginShaderMode(shaders[index]);
             DrawTexturePro(txinfo[txindex], src, dst, origin, 0.0f, c);
             EndShaderMode();
-        }
-
-        else if (type == ENTITY_ORC) {
+        } else if (type == ENTITY_ORC) {
             Vector2 v = get_velocity(id);
             if (v.x < 0) src.width *= -1;
             DrawTexturePro(txinfo[TX_ORC], src, dst, origin, 0.0f, c);
-        }
-
-        else if (type == ENTITY_ORC_BOSS) {
+        } else if (type == ENTITY_ORC_BOSS) {
             Vector2 v = get_velocity(id);
             src.width *= -1;
-            //DrawTexturePro(txinfo[TX_ORC], src, dst, origin, 0.0f, c);
             DrawTexturePro(txinfo[TX_ORC], src, hb, origin, 0.0f, c);
-        }
-
-        else if (type == ENTITY_COIN) {
+        } else if (type == ENTITY_COIN) {
             DrawTexturePro(txinfo[TX_COIN], src, dst, origin, 0.0f, c);
         } else if (type == ENTITY_DWARF_MERCHANT) {
             DrawTexturePro(txinfo[TX_DWARF_MERCHANT], src, dst, origin, 0.0f, WHITE);
@@ -1537,10 +1519,7 @@ void draw_frame() {
     ClearBackground(BLACK);
     DrawTexturePro(target_texture.texture, target_src, window_dst, origin, 0.0f, WHITE);
     draw_debug_panel();
-
     if (current_scene == SCENE_GAMEPLAY) draw_hud();
-
-
     EndDrawing();
     frame_count++;
 }
@@ -1715,12 +1694,6 @@ void update_state_hero_collision() {
     for (auto row : component_table) {
         entity_type t = get_type(row.first);
         if ((t == ENTITY_ORC || t == ENTITY_BAT) && CheckCollisionRecs(hb, get_hitbox(row.first))) {
-            //hero_collision_counter++;
-            //hero_total_damage_received++;
-            //set_destroy(row.first, true);
-            //decr_hp(hero_id, 1);
-            //enemies_killed++;
-            //PlaySound(sfx[SFX_GET_HIT]);
             hero_collision_counter++;
             hero_total_damage_received++;
             decr_hp(hero_id, 1);
@@ -1744,15 +1717,11 @@ void update_state_hero_collision() {
                 enemies_killed++;
             }
             PlaySound(sfx[SFX_GET_HIT]);
-
-
         } else if (t == ENTITY_ORC_BOSS && CheckCollisionRecs(hb, get_hitbox(row.first))) {
             hero_collision_counter++;
             hero_total_damage_received++;
             decr_hp(hero_id, 1);
-
             orc_boss_spawned = false;
-
             Vector2 enemyhp = get_hp(row.first);
             enemyhp.x--;
             set_hp(row.first, enemyhp);
@@ -1761,9 +1730,7 @@ void update_state_hero_collision() {
                 enemies_killed++;
             }
             PlaySound(sfx[SFX_GET_HIT]);
-        }
-
-        else if (t == ENTITY_COIN && CheckCollisionRecs(hb, get_hitbox(row.first))) {
+        } else if (t == ENTITY_COIN && CheckCollisionRecs(hb, get_hitbox(row.first))) {
             hero_collision_counter++;
             set_destroy(row.first, true);
             PlaySound(sfx[SFX_COIN]);
@@ -1814,7 +1781,6 @@ void update_state_magnet() {
     bounds.y -= 2 * m;
     bounds.width += 4 * m;
     bounds.height += 4 * m;
-
     for (auto row : types) {
         entityid id = row.first;
         entity_type t = get_type(id);
@@ -1929,18 +1895,13 @@ void handle_level_up() {
             num_orcs_to_create = 3;
             num_bats_to_create = 1;
         }
-
-
         if (player_level >= 10) {
             num_orcs_to_create = 4;
             num_bats_to_create = 2;
         }
-
         if (player_level % 10 == 0 && !orc_boss_spawned) {
             do_spawn_orc_boss = true;
         }
-
-
         //current_orc_speed = base_orc_speed - player_level * 0.05f; // increase orc speed
     }
 }
@@ -1949,15 +1910,12 @@ void update_level_up() {
     if (current_coins >= base_coin_level_up_amount * player_level && !do_spawn_merchant && !merchant_spawned) {
         do_spawn_merchant = true;
     }
-
     handle_level_up();
-
     if (do_spawn_merchant) {
         create_dwarf_merchant();
         do_spawn_merchant = false;
         merchant_spawned = true;
     }
-
     if (do_spawn_orc_boss && !orc_boss_spawned) {
         create_orc_boss();
         orc_boss_spawned = true;
@@ -1997,7 +1955,6 @@ void update_state() {
     update_state_player_attack();
     update_state_velocity();
     update_state_magnet();
-
     update_state_hero_collision();
     update_state_sword_collision();
     // perform entity cleanup based on the values in the 'destroy' table
@@ -2062,8 +2019,6 @@ int main() {
     init_gfx();
     init_sound();
     cleanup_data();
-
-
     // Web build
 #ifdef WEB_BUILD
     emscripten_set_main_loop(gameloop, 0, 1);
@@ -2073,7 +2028,6 @@ int main() {
         gameloop();
     }
 #endif
-
     unload_textures();
     unload_soundfiles();
     CloseAudioDevice();
