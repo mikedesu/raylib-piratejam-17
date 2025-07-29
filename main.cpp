@@ -1072,30 +1072,36 @@ void draw_hud() {
 }
 
 
-void draw_tutorial() {
-    ClearBackground(WHITE);
 #define TARGET_W_2 (TARGET_W / 2.0f)
 #define TARGET_H_8 (TARGET_H / 8.0f)
-    //int x0 = target_w / 2.0f;
+void draw_tutorial() {
+    Color bg = BLACK;
+    Color c = (Color){0x66, 0x66, 0x66, 255};
+    ClearBackground(bg);
     int x0 = TARGET_W_2;
     int x = x0;
-    int s = 30;
+    int s = 20;
     int y = TARGET_H_8 - s;
     int m = 0;
     int pad = 10;
-    //y -= s;
-    Color c = BLACK;
-    //const char* text = "Tutorial";
-    const char* texts[5] = {"Tutorial",
-                            "Use arrow keys to move",
-                            "Press A to attack",
-                            "Collect coins to level up",
-                            "Press A or ENTER to continue"};
 
-    for (int i = 0; i < 5; i++) {
-        m = MeasureText(texts[i], s);
+
+    vector<string> texts;
+    texts.push_back("Tutorial");
+    texts.push_back("Use arrow keys to move");
+    texts.push_back("Press A to attack");
+    texts.push_back("Defeat orcs");
+    texts.push_back("Collect coins");
+    texts.push_back("Visit the traveling merchant");
+    texts.push_back("Buy power ups to level up");
+    texts.push_back("It gets harder as you go!"); // 7
+    texts.push_back("Good Luck!"); // 8
+    texts.push_back("Press A or ENTER to continue");
+
+    for (int i = 0; i < texts.size(); i++) {
+        m = MeasureText(texts[i].c_str(), s);
         x = TARGET_W_2 - m / 2.0f;
-        DrawText(texts[i], x, y, s, c);
+        DrawText(texts[i].c_str(), x, y, s, i == 7 ? RED : i == 8 ? WHITE : c);
         y += s + pad;
     }
 }
@@ -1261,10 +1267,15 @@ void draw_gameover() {
     x = target_w / 2 - m / 2;
     DrawText(text, x, y, s, c);
     y += s + p;
-    text = TextFormat("Coins collected/spawned: %d/%d (%0.2f%)",
-                      coins_collected,
-                      coins_spawned,
-                      (float)coins_collected / (float)coins_spawned * 100.0f);
+
+
+    float coin_ratio = 0.0f;
+    if (coins_spawned > 0) {
+        coin_ratio = (float)coins_collected / (float)coins_spawned * 100.0f;
+    }
+
+    text = TextFormat("Coins collected/spawned: %d/%d (%0.2f%)", coins_collected, coins_spawned, coin_ratio);
+
     m = MeasureText(text, s);
     x = target_w / 2 - m / 2;
     DrawText(text, x, y, s, c);
@@ -1278,7 +1289,14 @@ void draw_gameover() {
     m = MeasureText(text, s);
     x = target_w / 2 - m / 2;
     DrawText(text, x, y, s, c);
+    y += (s + p) * 2;
+    text = "Press enter to return to title";
+    m = MeasureText(text, s);
+    x = target_w / 2 - m / 2;
+    DrawText(text, x, y, s, c);
     y += s + p;
+
+
     EndDrawing();
     frame_updates++;
 }
@@ -1502,7 +1520,10 @@ void draw_frame() {
     ClearBackground(BLACK);
     DrawTexturePro(target_texture.texture, target_src, window_dst, origin, 0.0f, WHITE);
     draw_debug_panel();
-    draw_hud();
+
+    if (current_scene == SCENE_GAMEPLAY) draw_hud();
+
+
     EndDrawing();
     frame_count++;
 }
