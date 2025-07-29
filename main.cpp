@@ -848,7 +848,7 @@ bool create_dwarf_merchant() {
     entityid id = add_entity();
     if (id == ENTITYID_INVALID) return false;
     Rectangle src = {0, 0, (float)-txinfo[TX_DWARF_MERCHANT].width, (float)txinfo[TX_DWARF_MERCHANT].height};
-    float w = src.width;
+    float w = -src.width;
     float h = src.height;
     // Select a random x,yf appropriate to the scene
     Vector2 p = {ORC_SPAWN_X_RIGHT, ORC_SPAWN_Y + GetRandomValue(-1, 1) * h};
@@ -1213,7 +1213,7 @@ void draw_company() {
 
 void draw_starfield_to_texture() {
     BeginDrawing();
-    BeginTextureMode(title_texture);
+    BeginTextureMode(starfield_texture_0);
     Color bg = (Color){0, 0, 0, 0}; // clear/transparent background
     ClearBackground(bg);
 
@@ -1420,11 +1420,18 @@ void draw_gameplay_grass() {
     }
 }
 
-// TODO: optimize
 void draw_gameplay_sky() {
 #define TARGET_H_4 (TARGET_H / 4.0f)
 #define TARGET_H_4255 (255.0f / TARGET_H_4)
+
+    //ClearBackground((Color){0, 0, 0, 255});
+    Rectangle src = {0, 0, (float)target_w, (float)target_h};
+    Rectangle dst = {0, 0, (float)target_w, (float)target_h};
+
     unsigned char a = is_day ? 255 - (sun.y * TARGET_H_4255) : moon.y * TARGET_H_4255;
+    //ClearBackground((Color){0, 0, 0, a});
+    unsigned char b = 255 - a;
+    DrawTexturePro(starfield_texture_0.texture, src, dst, origin, 0.0f, (Color){0xff, 0xff, 0xff, b});
     ClearBackground((Color){0, 0, 255, a});
 }
 
@@ -1508,6 +1515,11 @@ void draw_gameplay() {
             DrawTexturePro(txinfo[TX_COIN], src, dst, origin, 0.0f, c);
         } else if (type == ENTITY_DWARF_MERCHANT) {
             DrawTexturePro(txinfo[TX_DWARF_MERCHANT], src, dst, origin, 0.0f, WHITE);
+
+            //DrawRectangleLinesEx(dst, 1.0f, BLUE);
+            //DrawRectangleLinesEx(hb, 1.0f, RED);
+
+
         } else if (type == ENTITY_HEALTH_REPLENISH) {
             DrawTexturePro(txinfo[TX_HEALTH_REPLENISH], src, dst, origin, 0.0f, WHITE);
         } else if (type == ENTITY_BAT) {
