@@ -214,7 +214,6 @@ entityid hero_id = ENTITYID_INVALID;
 entityid sword_id = ENTITYID_INVALID;
 bool player_attacking = false;
 int last_dir_key_pressed = KEY_RIGHT;
-//Vector2 hero_hitbox = {-1, -1, -1, -1};
 float starting_sword_durability = 1.0f;
 float current_sword_durability = 1.0f;
 
