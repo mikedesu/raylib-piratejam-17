@@ -187,8 +187,14 @@ bool levelup_flag = false;
 int base_coin_level_up_amount = COIN_LVL_UP_AMT;
 
 int merchant_item_selection = 0;
+
 bool do_spawn_merchant = false;
 bool merchant_spawned = false;
+
+bool do_spawn_orc_boss = false;
+bool orc_boss_spawned = false;
+
+
 bool gameover = false;
 int last_dir_key_pressed = KEY_RIGHT;
 int highest_level_reached = 1;
@@ -753,6 +759,10 @@ bool create_orc() {
     int random_y = 0;
     random_y = GetRandomValue(-2, 2);
     p.y += random_y * h;
+
+    p.x += GetRandomValue(-w / 2.0f, w / 2.0f);
+    p.y += GetRandomValue(-h / 2.0f, h / 2.0f);
+
     Rectangle hitbox = {p.x, p.y, w, h};
     set_src(id, src);
     set_pos(id, p);
@@ -797,8 +807,11 @@ bool create_orc_boss() {
     set_collides(id, true);
     set_destroy(id, false);
 
-#define ORC_BOSS_HP 10.0f
-    set_hp(id, (Vector2){ORC_BOSS_HP, ORC_BOSS_HP});
+    //#define ORC_BOSS_HP 10.0f
+
+    // since we only intend to spawn every 10 levels,
+    // and we want scaling boss hp
+    set_hp(id, (Vector2){player_level * 2.0f, player_level * 2.0f});
     enemies_spawned++;
     return true;
 }
@@ -1700,6 +1713,8 @@ void update_state_hero_collision() {
             hero_total_damage_received++;
             decr_hp(hero_id, 1);
 
+            orc_boss_spawned = false;
+
             Vector2 enemyhp = get_hp(row.first);
             enemyhp.x--;
             set_hp(row.first, enemyhp);
@@ -1808,14 +1823,12 @@ void update_state_sword_collision() {
                     if (t == ENTITY_ORC) {
                         spawn_drop(id);
                     } else if (t == ENTITY_ORC_BOSS) {
-                        spawn_drop(id);
-                        spawn_drop(id);
-                        spawn_drop(id);
-                        spawn_drop(id);
-                        spawn_drop(id);
+                        for (int i = 0; i < player_level / 2; i++) {
+                            spawn_drop(id);
+                        }
+                        orc_boss_spawned = false;
                     }
                     enemies_killed++;
-                    //total_enemies_killed++;
                 }
                 PlaySound(sfx[SFX_HIT]);
                 dura.x--;
@@ -1878,10 +1891,18 @@ void handle_level_up() {
             num_orcs_to_create = 3;
             num_bats_to_create = 1;
         }
+
+
         if (player_level >= 10) {
             num_orcs_to_create = 4;
             num_bats_to_create = 2;
         }
+
+        if (player_level % 10 == 0 && !orc_boss_spawned) {
+            do_spawn_orc_boss = true;
+        }
+
+
         //current_orc_speed = base_orc_speed - player_level * 0.05f; // increase orc speed
     }
 }
@@ -1890,11 +1911,19 @@ void update_level_up() {
     if (current_coins >= base_coin_level_up_amount * player_level && !do_spawn_merchant && !merchant_spawned) {
         do_spawn_merchant = true;
     }
+
     handle_level_up();
+
     if (do_spawn_merchant) {
         create_dwarf_merchant();
         do_spawn_merchant = false;
         merchant_spawned = true;
+    }
+
+    if (do_spawn_orc_boss && !orc_boss_spawned) {
+        create_orc_boss();
+        orc_boss_spawned = true;
+        do_spawn_orc_boss = false;
     }
 }
 
