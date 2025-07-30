@@ -56,6 +56,7 @@
 #define MOON_VELO 0.01f
 #define STARFIELD_WIDTH (TARGET_W * 4.0f)
 #define STARFIELD_HEIGHT (TARGET_W * 4.0f)
+#define STARFIELD_SPEED 0.01f
 
 // Merchant Settings
 #define MERCHANT_ITEM_SELECTION_MAX 3
@@ -879,9 +880,9 @@ bool create_coin(entityid id) {
     // add a little random variance to the x and y
     // so when multiple coins spawn at the same location
     // they do not overlap
-    p.x += GetRandomValue(-4, 4);
-    p.y += GetRandomValue(-4, 4);
     Rectangle src = {0, 0, (float)txinfo[TX_COIN].width, (float)txinfo[TX_COIN].height};
+    p.x += GetRandomValue(-src.width / 2.0f, src.width / 2.0f);
+    p.y += GetRandomValue(-src.height / 2.0f, src.height / 2.0f);
     Rectangle hitbox = {p.x, p.y, src.width, src.height};
     set_name(coin_id, "coin");
     set_type(coin_id, ENTITY_COIN);
@@ -1970,7 +1971,6 @@ void update_level_up() {
     }
 }
 
-#define STARFIELD_SPEED 0.01f
 void update_state_starfield() {
     starfield_pos.x += STARFIELD_SPEED;
     starfield_dst.x = starfield_pos.x;
